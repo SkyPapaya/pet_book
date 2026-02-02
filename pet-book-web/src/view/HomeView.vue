@@ -80,7 +80,7 @@ onMounted(() => {
     .active {
       color: #333;
       font-size: 18px;
-      border-bottom: 2px solid #ff2442; /* 小红书红 */
+      border-bottom: 2px solid #e6a23c; /* 主题色-温馨黄 */
     }
   }
 }

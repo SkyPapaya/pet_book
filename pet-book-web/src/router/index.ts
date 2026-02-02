@@ -16,6 +16,12 @@ const router = createRouter({
       meta: { title: '发布' },
     },
     {
+      path: '/publish/create',
+      name: 'publishCreate',
+      component: () => import('../views/PublishPostView.vue'),
+      meta: { title: '发布笔记' },
+    },
+    {
       path: '/notification',
       name: 'notification',
       component: () => import('../views/NotificationView.vue'),

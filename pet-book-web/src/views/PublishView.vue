@@ -4,14 +4,20 @@ import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
-// 左侧菜单：返回首页、笔记管理、数据看板
+// 左侧菜单：返回首页、写笔记、笔记管理、数据看板
 const menus = [
   { path: '/', label: '返回首页' },
+  { path: '/publish/create', label: '写笔记' },
   { path: '/publish', label: '笔记管理', active: true },
   { path: '/publish/stats', label: '数据看板' },
 ]
 
 const activeMenu = ref('笔记管理')
+
+// 发布笔记入口（跳转到写笔记页）
+function goCreate() {
+  router.push('/publish/create')
+}
 const noteSearch = ref('')
 const noteList = ref<{ id: number; title: string; status: string; createdAt: string }[]>([])
 const noteLoading = ref(false)
@@ -21,9 +27,11 @@ const NOTE_PAGE_SIZE = 10
 
 function goTo(path: string) {
   if (path === '/') router.push('/')
-  else if (path === '/publish/stats') {
+  else if (path === '/publish/create') {
+    router.push('/publish/create')
+    return
+  } else if (path === '/publish/stats') {
     activeMenu.value = '数据看板'
-    // 可后续做数据看板页
   } else {
     activeMenu.value = '笔记管理'
   }
@@ -92,6 +100,9 @@ onMounted(() => {
     <main class="publish-main">
       <template v-if="activeMenu === '笔记管理'">
         <div class="toolbar">
+          <button type="button" class="btn-create" @click="goCreate">
+            发布笔记
+          </button>
           <input
             v-model="noteSearch"
             type="text"
@@ -137,15 +148,16 @@ onMounted(() => {
 </template>
 
 <style lang="scss" scoped>
-$primary: #ff2442;
+$primary: #e6a23c;
 $text: #333;
 $text2: #666;
 $border: #eee;
 
 .publish-view {
   display: flex;
+  width: 100%;
   min-height: calc(100vh - 60px);
-  background: #f5f5f5;
+  background: #f8f6f1;
 }
 
 .publish-sidebar {
@@ -169,7 +181,7 @@ $border: #eee;
   &.active {
     color: $primary;
     font-weight: 600;
-    background: rgba($primary, 0.06);
+    background: rgba(230, 162, 60, 0.12);
   }
 }
 
@@ -186,10 +198,29 @@ $border: #eee;
 
 .toolbar {
   margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-create {
+  padding: 10px 20px;
+  border: none;
+  background: $primary;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  flex-shrink: 0;
+  &:hover {
+    opacity: 0.9;
+  }
 }
 
 .search-input {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   max-width: 400px;
   padding: 10px 16px;
   border: 1px solid $border;

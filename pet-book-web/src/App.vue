@@ -9,6 +9,13 @@ import PostDetailModal from './components/PostDetailModal.vue'
 </template>
 
 <style lang="scss">
+/* 全局主题：温馨黄色 */
+:root {
+  --primary:rgb(255, 229, 62);
+  --primary-light: rgba(230, 162, 60, 0.12);
+  --primary-border: rgba(230, 162, 60, 0.35);
+}
+
 *,
 *::before,
 *::after {
@@ -17,7 +24,7 @@ import PostDetailModal from './components/PostDetailModal.vue'
 
 body {
   margin: 0;
-  background: #f5f5f5;
+  background: #f8f6f1;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   font-size: 14px;

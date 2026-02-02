@@ -240,7 +240,7 @@ watch(activeChannel, (id) => {
 </template>
 
 <style lang="scss" scoped>
-$primary: #ff2442;
+$primary: #e6a23c;
 $text: #333;
 $text2: #666;
 $text3: #999;
@@ -248,8 +248,9 @@ $bg: #fff;
 $border: #eee;
 
 .home-view {
-  background: #f5f5f5;
+  background: #f8f6f1;
   min-height: calc(100vh - 60px);
+  width: 100%;
 }
 
 .channel-bar-wrap {
@@ -293,9 +294,11 @@ $border: #eee;
 }
 
 .feed-wrap {
-  max-width: 1200px;
+  width: 100%;
+  max-width: min(1200px, 100vw - 240px);
   margin: 0 auto;
-  padding: 20px 24px 60px;
+  padding: 20px clamp(16px, 3vw, 24px) 60px;
+  box-sizing: border-box;
 }
 
 .waterfall {
@@ -399,8 +402,8 @@ $border: #eee;
     color: $primary;
   }
   &.liked {
-    background: rgba($primary, 0.08);
-    border-color: rgba($primary, 0.25);
+    background: rgba(230, 162, 60, 0.12);
+    border-color: rgba(230, 162, 60, 0.35);
     color: $primary;
   }
 }

@@ -151,17 +151,19 @@ function likeItem(item: { id: number }) {
 </template>
 
 <style lang="scss" scoped>
-$primary: #ff2442;
+$primary: #e6a23c;
 $text: #333;
 $text2: #666;
 $border: #eee;
 
 .notification-view {
-  max-width: 700px;
+  width: 100%;
+  max-width: min(700px, 100vw - 240px);
   margin: 0 auto;
-  padding: 24px;
+  padding: clamp(16px, 3vw, 24px);
   background: #fff;
   min-height: calc(100vh - 60px);
+  box-sizing: border-box;
 }
 
 .tabs-bar {

@@ -66,7 +66,7 @@ onUnmounted(() => {
           :key="item.path"
           :href="item.path"
           class="nav-item"
-          :class="{ active: route.path === item.path }"
+          :class="{ active: route.path === item.path || (item.path === '/publish' && route.path.startsWith('/publish')) }"
           @click.prevent="goTo(item.path)"
         >
           <span class="icon">{{ item.icon }}</span>
@@ -135,7 +135,7 @@ onUnmounted(() => {
 </template>
 
 <style lang="scss" scoped>
-$primary: #ff2442;
+$primary: #e6a23c;
 $text: #333;
 $text2: #666;
 $text3: #999;
@@ -145,7 +145,8 @@ $border: #eee;
 .main-layout {
   display: flex;
   min-height: 100vh;
-  background: #f5f5f5;
+  width: 100%;
+  background: #f8f6f1;
 }
 
 .sidebar {
@@ -191,11 +192,11 @@ $border: #eee;
     font-size: 18px;
   }
   &:hover {
-    background: #fff5f5;
+    background: #fef9f0;
     color: $primary;
   }
   &.active {
-    background: rgba($primary, 0.08);
+    background: rgba(230, 162, 60, 0.12);
     color: $primary;
     font-weight: 600;
   }

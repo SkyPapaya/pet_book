@@ -165,18 +165,20 @@ function openPost(id: number) {
 </template>
 
 <style lang="scss" scoped>
-$primary: #ff2442;
+$primary: #e6a23c;
 $text: #333;
 $text2: #666;
 $text3: #999;
 $border: #eee;
 
 .profile-view {
-  max-width: 960px;
+  width: 100%;
+  max-width: min(960px, 100vw - 240px);
   margin: 0 auto;
-  padding: 24px;
+  padding: clamp(16px, 3vw, 24px);
   background: #fff;
   min-height: calc(100vh - 60px);
+  box-sizing: border-box;
 }
 
 .profile-header {

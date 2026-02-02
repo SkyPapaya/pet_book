@@ -420,7 +420,7 @@ function likeReply(r: Comment) {
 </template>
 
 <style lang="scss" scoped>
-$primary: #ff2442;
+$primary: #e6a23c;
 $text: #333;
 $text2: #666;
 $text3: #999;
@@ -829,7 +829,7 @@ $border: #eee;
   }
   &:hover,
   &.active {
-    border-color: rgba($primary, 0.35);
+    border-color: rgba(230, 162, 60, 0.35);
     color: $primary;
     .num {
       color: $primary;

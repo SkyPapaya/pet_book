@@ -60,7 +60,7 @@ const menus = [
   align-items: center;
   padding-left: 12px;
   .logo-text {
-    color: #ff2442;
+    color: #e6a23c;
     font-size: 30px;
     font-weight: bold;
     font-family: serif; /* 模拟小红书Logo字体 */
@@ -95,7 +95,7 @@ const menus = [
   }
 
   &.active {
-    background-color: #ff2442;
+    background-color: #e6a23c;
     color: white;
   }
 }
