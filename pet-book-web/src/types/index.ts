@@ -59,6 +59,28 @@ export interface UserBrief {
   ip?: string
 }
 
+// 宠物信息（个人页展示）
+export interface Pet {
+  id: number
+  name: string
+  /** 宠物头像/图片 */
+  avatar: string
+  /** 种类：猫、狗等 */
+  species: string
+  /** 品种，如 布偶猫、金毛 */
+  breed?: string
+  /** 性别 */
+  gender: 'male' | 'female'
+  /** 生日，ISO 日期 */
+  birthday?: string
+  /** 年龄展示，如 2岁、3个月 */
+  ageText?: string
+  /** 健康情况 */
+  health: string
+  /** 是否绝育 */
+  neutered?: boolean
+}
+
 // 个人主页用户信息（宠物书账号、IP、签名、性别年龄职业、关注/粉丝/获赞与收藏）
 export interface UserProfile {
   id: number
@@ -84,4 +106,6 @@ export interface UserProfile {
   followersCount: number
   /** 获赞与收藏总数 */
   likesAndCollectCount: number
+  /** 主人的宠物列表 */
+  pets?: Pet[]
 }

@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import type { PostDetail, Comment } from '../types'
 
+const router = useRouter()
 const appStore = useAppStore()
+const commentInputRef = ref<HTMLInputElement | null>(null)
+const commentInputExpanded = ref(false)
 
 const currentImageIndex = ref(0)
 const commentInput = ref('')
@@ -69,6 +73,7 @@ function close() {
   appStore.closePost()
   currentImageIndex.value = 0
   commentInput.value = ''
+  commentInputExpanded.value = false
   replyToCommentId.value = null
   expandedReplies.value = new Set()
   comments.value = []
@@ -198,8 +203,20 @@ function toggleReplies(commentId: number) {
   expandedReplies.value = set
 }
 
+function expandCommentInput() {
+  commentInputExpanded.value = true
+  nextTick(() => commentInputRef.value?.focus())
+}
+
 function startReply(commentId: number) {
   replyToCommentId.value = commentId
+  commentInputExpanded.value = true
+  nextTick(() => commentInputRef.value?.focus())
+}
+
+
+function goToProfile(userId: number) {
+  router.push({ path: '/profile', query: { userId: String(userId) } })
 }
 
 function submitComment() {
@@ -217,6 +234,12 @@ function submitComment() {
   comments.value = [newComment, ...comments.value]
   commentInput.value = ''
   replyToCommentId.value = null
+  commentInputExpanded.value = false
+}
+
+function collapseCommentInput() {
+  commentInputExpanded.value = false
+  commentInputRef.value?.blur()
 }
 
 function likeComment(c: Comment) {
@@ -295,13 +318,28 @@ function likeReply(r: Comment) {
                   :key="c.id"
                   class="comment-item"
                 >
-                  <img :src="c.userAvatar" alt="" class="comment-avatar" />
+                  <button
+                    type="button"
+                    class="comment-avatar-btn"
+                    :title="'去' + c.userName + '的主页'"
+                    @click="goToProfile(c.userId)"
+                  >
+                    <img :src="c.userAvatar" alt="" class="comment-avatar" />
+                  </button>
                   <div class="comment-body">
                     <div class="comment-meta">
                       <span class="comment-user">{{ c.userName }}</span>
                       <span class="comment-time">{{ formatTime(c.createdAt) }}</span>
                     </div>
-                    <p class="comment-content">{{ c.content }}</p>
+                    <p
+                      class="comment-content"
+                      role="button"
+                      tabindex="0"
+                      @click="startReply(c.id)"
+                      @keydown.enter.space.prevent="startReply(c.id)"
+                    >
+                      {{ c.content }}
+                    </p>
                     <div class="comment-actions">
                       <button
                         type="button"
@@ -320,16 +358,31 @@ function likeReply(r: Comment) {
                       <!-- 默认只展示点赞最多的一条 -->
                       <div v-if="!expandedReplies.has(c.id)" class="replies-list">
                         <div class="reply-item">
-                          <span class="reply-user">{{ firstReply(c).userName }}</span>
-                          <span class="reply-content">{{ firstReply(c).content }}</span>
                           <button
                             type="button"
-                            class="reply-like"
-                            :class="{ liked: firstReply(c).isLiked }"
-                            @click="likeReply(firstReply(c))"
+                            class="reply-avatar-btn"
+                            @click="goToProfile(firstReply(c).userId)"
                           >
-                            ♥ {{ formatLikeCount(firstReply(c).likeCount) }}
+                            <img :src="firstReply(c).userAvatar" alt="" class="reply-avatar" />
                           </button>
+                          <div class="reply-body">
+                            <span class="reply-user">{{ firstReply(c).userName }}</span>
+                            <span
+                              class="reply-content reply-content-click"
+                              role="button"
+                              tabindex="0"
+                              @click="startReply(c.id)"
+                              @keydown.enter.space.prevent="startReply(c.id)"
+                            >{{ firstReply(c).content }}</span>
+                            <button
+                              type="button"
+                              class="reply-like"
+                              :class="{ liked: firstReply(c).isLiked }"
+                              @click="likeReply(firstReply(c))"
+                            >
+                              ♥ {{ formatLikeCount(firstReply(c).likeCount) }}
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <button
@@ -343,16 +396,31 @@ function likeReply(r: Comment) {
                       <!-- 展开后展示全部子评论 -->
                       <div v-if="expandedReplies.has(c.id)" class="replies-list">
                         <div v-for="r in c.replies" :key="r.id" class="reply-item">
-                          <span class="reply-user">{{ r.userName }}</span>
-                          <span class="reply-content">{{ r.content }}</span>
                           <button
                             type="button"
-                            class="reply-like"
-                            :class="{ liked: r.isLiked }"
-                            @click="likeReply(r)"
+                            class="reply-avatar-btn"
+                            @click="goToProfile(r.userId)"
                           >
-                            ♥ {{ formatLikeCount(r.likeCount) }}
+                            <img :src="r.userAvatar" alt="" class="reply-avatar" />
                           </button>
+                          <div class="reply-body">
+                            <span class="reply-user">{{ r.userName }}</span>
+                            <span
+                              class="reply-content reply-content-click"
+                              role="button"
+                              tabindex="0"
+                              @click="startReply(c.id)"
+                              @keydown.enter.space.prevent="startReply(c.id)"
+                            >{{ r.content }}</span>
+                            <button
+                              type="button"
+                              class="reply-like"
+                              :class="{ liked: r.isLiked }"
+                              @click="likeReply(r)"
+                            >
+                              ♥ {{ formatLikeCount(r.likeCount) }}
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <button
@@ -370,47 +438,70 @@ function likeReply(r: Comment) {
               </div>
             </div>
 
-            <!-- 底部：自己的头像 + 父级评论输入框 -->
-            <div class="bottom-bar">
+            <!-- 底部：未展开 = 头像+输入框+四按钮（无发送）；展开 = 大输入区 + @/表情 + 发送/取消 -->
+            <div class="bottom-bar" :class="{ expanded: commentInputExpanded }">
               <img
                 :src="appStore.user?.avatar ?? ''"
                 alt=""
                 class="me-avatar"
               />
-              <input
-                v-model="commentInput"
-                type="text"
-                class="comment-input"
-                placeholder="发表评论..."
-                @keyup.enter="submitComment"
-              />
-              <button type="button" class="btn-send" @click="submitComment">发送</button>
-            </div>
-
-            <!-- 右侧按钮条：点赞/收藏/评论/转发（显示数量） -->
-            <div class="right-actions" aria-label="actions">
-              <button
-                type="button"
-                class="action-pill"
-                :class="{ active: isLiked }"
-                @click="toggleLike"
-              >
-                ♥<span class="num">{{ formatLikeCount(likeCount) }}</span>
-              </button>
-              <button
-                type="button"
-                class="action-pill"
-                :class="{ active: isCollected }"
-                @click="toggleCollect"
-              >
-                ☆<span class="num">{{ formatLikeCount(collectCount) }}</span>
-              </button>
-              <button type="button" class="action-pill">
-                💬<span class="num">{{ formatLikeCount(post.commentCount ?? 0) }}</span>
-              </button>
-              <button type="button" class="action-pill">
-                ↗<span class="num">0</span>
-              </button>
+              <template v-if="!commentInputExpanded">
+                <input
+                  ref="commentInputRef"
+                  v-model="commentInput"
+                  type="text"
+                  class="comment-input comment-input-inline"
+                  placeholder="说点什么..."
+                  @focus="expandCommentInput"
+                  @keyup.enter="submitComment"
+                />
+                <div class="action-pills">
+                  <button
+                    type="button"
+                    class="action-pill"
+                    :class="{ active: isLiked }"
+                    @click="toggleLike"
+                  >
+                    ♥<span class="num">{{ formatLikeCount(likeCount) }}</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="action-pill"
+                    :class="{ active: isCollected }"
+                    @click="toggleCollect"
+                  >
+                    ☆<span class="num">{{ formatLikeCount(collectCount) }}</span>
+                  </button>
+                  <button type="button" class="action-pill">
+                    💬<span class="num">{{ formatLikeCount(post.commentCount ?? 0) }}</span>
+                  </button>
+                  <button type="button" class="action-pill">
+                    ↗<span class="num">0</span>
+                  </button>
+                </div>
+              </template>
+              <template v-else>
+                <div class="comment-expanded-wrap">
+                  <div class="comment-expanded-row1">
+                    <input
+                      ref="commentInputRef"
+                      v-model="commentInput"
+                      type="text"
+                      class="comment-input comment-input-expanded"
+                      placeholder="说点什么..."
+                      @keyup.enter.exact="submitComment"
+                    />
+                    <span class="quick-emoji" title="表情">😊 🌱</span>
+                  </div>
+                  <div class="comment-expanded-row2">
+                    <button type="button" class="icon-btn" title="@ 提及">@</button>
+                    <button type="button" class="icon-btn" title="表情">😊</button>
+                    <span class="row2-spacer" />
+                    <button type="button" class="btn-cancel" @click="collapseCommentInput">取消</button>
+                    <button type="button" class="btn-send" @click="submitComment">发送</button>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
         </div>
@@ -641,12 +732,24 @@ $border: #eee;
   }
 }
 
+.comment-avatar-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 50%;
+  &:hover {
+    opacity: 0.85;
+  }
+}
+
 .comment-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
   object-fit: cover;
-  flex-shrink: 0;
+  display: block;
 }
 
 .comment-body {
@@ -677,6 +780,12 @@ $border: #eee;
   font-size: 14px;
   color: $text2;
   line-height: 1.5;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 0;
+  &:hover {
+    color: $primary;
+  }
 }
 
 .comment-actions {
@@ -705,11 +814,47 @@ $border: #eee;
 
 .reply-item {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   font-size: 13px;
   color: $text2;
   padding: 6px 0;
+}
+
+.reply-avatar-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 50%;
+  &:hover {
+    opacity: 0.85;
+  }
+}
+
+.reply-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.reply-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+
+.reply-content-click {
+  cursor: pointer;
+  &:hover {
+    color: $primary;
+  }
 }
 
 .reply-user {
@@ -758,12 +903,17 @@ $border: #eee;
 }
 
 .bottom-bar {
+  flex-shrink: 0;
   padding: 12px 16px;
   border-top: 1px solid $border;
-  flex-shrink: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
+  min-width: 0;
+
+  &.expanded {
+    align-items: flex-start;
+  }
 }
 
 .me-avatar {
@@ -777,6 +927,7 @@ $border: #eee;
 
 .comment-input {
   flex: 1;
+  min-width: 0;
   padding: 10px 14px;
   border: 1px solid $border;
   border-radius: 999px;
@@ -787,49 +938,125 @@ $border: #eee;
     border-color: $primary;
     background: #fff;
   }
+
+  &.comment-input-inline {
+    border-radius: 999px;
+  }
+
+  &.comment-input-expanded {
+    border-radius: 12px;
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+}
+
+.comment-expanded-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comment-expanded-row1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  .comment-input-expanded {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.quick-emoji {
+  flex-shrink: 0;
+  font-size: 18px;
+  color: $text2;
+  cursor: default;
+}
+
+.comment-expanded-row2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: $text2;
+  font-size: 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  &:hover {
+    background: #f5f5f5;
+    color: $text;
+  }
+}
+
+.row2-spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn-cancel {
+  padding: 5px 12px;
+  background: #fff;
+  color: $text2;
+  border: 1px solid $border;
+  border-radius: 16px;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+  &:hover {
+    background: #fafafa;
+    border-color: #ddd;
+  }
 }
 
 .btn-send {
-  padding: 10px 18px;
+  padding: 5px 12px;
   background: $primary;
   color: #fff;
   border: none;
-  border-radius: 20px;
-  font-size: 14px;
+  border-radius: 16px;
+  font-size: 12px;
+  white-space: nowrap;
   cursor: pointer;
   &:hover {
     opacity: 0.9;
   }
 }
 
-.right-actions {
-  position: absolute;
-  right: 10px;
-  bottom: 14px;
+.action-pills {
   display: flex;
-  gap: 10px;
-  z-index: 3;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .action-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 12px;
-  border-radius: 999px;
-  border: 1px solid $border;
-  background: #fff;
+  gap: 4px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
   color: $text2;
   font-size: 13px;
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
   .num {
     font-size: 12px;
     color: $text3;
   }
   &:hover,
   &.active {
-    border-color: rgba(230, 162, 60, 0.35);
     color: $primary;
     .num {
       color: $primary;
@@ -846,10 +1073,15 @@ $border: #eee;
     border-right: none;
     border-bottom: 1px solid $border;
   }
-  .right-actions {
-    position: static;
-    padding: 0 16px 16px;
+  .bottom-bar {
+    flex-wrap: wrap;
+  }
+  .action-pills {
+    width: 100%;
     justify-content: space-between;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #f5f5f5;
   }
 }
 </style>

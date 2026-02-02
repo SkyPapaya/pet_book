@@ -1,12 +1,32 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useAppStore } from '../stores/app'
-import type { UserProfile } from '../types'
+import type { UserProfile, Pet } from '../types'
 
 const appStore = useAppStore()
 const user = computed(() => appStore.user)
 
 const activeTab = ref<'posts' | 'collect' | 'likes'>('posts')
+
+// 宠物：最多展示 2 个，其余折叠可展开
+const petExpand = ref(false)
+const PET_DISPLAY_LIMIT = 2
+
+const pets = computed(() => user.value?.pets ?? [])
+const petsDisplay = computed(() => {
+  const list = pets.value
+  if (petExpand.value || list.length <= PET_DISPLAY_LIMIT) return list
+  return list.slice(0, PET_DISPLAY_LIMIT)
+})
+const petsFoldedCount = computed(() => {
+  const n = pets.value.length
+  if (n <= PET_DISPLAY_LIMIT) return 0
+  return petExpand.value ? 0 : n - PET_DISPLAY_LIMIT
+})
+
+function petGenderText(pet: Pet): string {
+  return pet.gender === 'male' ? '公' : '母'
+}
 
 // 性别展示文案
 function genderText(profile: UserProfile | null): string {
@@ -41,8 +61,13 @@ function formatCount(n: number): string {
 }
 
 function openPost(id: number) {
-  // 可后续跳转或打开帖子详情
   console.log('open post', id)
+}
+
+function formatBirthday(birthday?: string): string {
+  if (!birthday) return ''
+  const d = new Date(birthday)
+  return `${d.getMonth() + 1}月${d.getDate()}日`
 }
 </script>
 
@@ -77,6 +102,56 @@ function openPost(id: number) {
         </div>
       </div>
     </div>
+
+    <!-- 我的宠物：最多展示 2 个，多余折叠可展开 -->
+    <section v-if="pets.length" class="pets-section">
+      <h2 class="section-title">我的宠物</h2>
+      <div class="pets-grid">
+        <div
+          v-for="pet in petsDisplay"
+          :key="pet.id"
+          class="pet-card"
+        >
+          <div class="pet-avatar-wrap">
+            <img :src="pet.avatar" :alt="pet.name" class="pet-avatar" />
+          </div>
+          <div class="pet-info">
+            <div class="pet-name">{{ pet.name }}</div>
+            <div class="pet-meta">
+              <span>{{ pet.species }}</span>
+              <span v-if="pet.breed"> · {{ pet.breed }}</span>
+              <span> · {{ petGenderText(pet) }}</span>
+            </div>
+            <div class="pet-meta">
+              <span v-if="pet.ageText">年龄 {{ pet.ageText }}</span>
+              <span v-if="pet.birthday"> · 生日 {{ formatBirthday(pet.birthday) }}</span>
+            </div>
+            <div class="pet-health">
+              <span class="health-label">健康：</span>{{ pet.health }}
+            </div>
+            <div v-if="pet.neutered !== undefined" class="pet-meta">
+              {{ pet.neutered ? '已绝育' : '未绝育' }}
+            </div>
+          </div>
+        </div>
+      </div>
+      <button
+        v-if="petsFoldedCount > 0"
+        type="button"
+        class="btn-expand-pets"
+        @click="petExpand = true"
+      >
+        展开更多（{{ petsFoldedCount }} 只）
+      </button>
+      <button
+        v-else-if="pets.length > PET_DISPLAY_LIMIT"
+        type="button"
+        class="btn-expand-pets"
+        @click="petExpand = false"
+      >
+        收起
+      </button>
+    </section>
 
     <div class="tabs-bar">
       <button
@@ -258,6 +333,90 @@ $border: #eee;
       font-weight: 600;
       margin-right: 4px;
     }
+  }
+}
+
+.pets-section {
+  padding: 20px 0;
+  border-bottom: 1px solid $border;
+}
+
+.section-title {
+  margin: 0 0 16px;
+  font-size: 17px;
+  font-weight: 600;
+  color: $text;
+}
+
+.pets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.pet-card {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background: #fafaf6;
+  border-radius: 12px;
+  border: 1px solid $border;
+}
+
+.pet-avatar-wrap {
+  flex-shrink: 0;
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #f0f0f0;
+}
+
+.pet-avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.pet-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.pet-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: $text;
+  margin-bottom: 6px;
+}
+
+.pet-meta {
+  font-size: 13px;
+  color: $text2;
+  margin-bottom: 4px;
+}
+
+.pet-health {
+  font-size: 13px;
+  color: $text2;
+  margin-top: 6px;
+  .health-label {
+    color: $text3;
+  }
+}
+
+.btn-expand-pets {
+  margin-top: 12px;
+  padding: 8px 16px;
+  border: 1px solid $primary;
+  background: transparent;
+  color: $primary;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  &:hover {
+    background: rgba(230, 162, 60, 0.1);
   }
 }
 
