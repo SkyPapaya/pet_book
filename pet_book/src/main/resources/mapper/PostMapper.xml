@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.skypapaya.mapper.PostMapper">
+
+    <select id="selectFeedList" resultType="com.skypapaya.vo.PostCardVO">
+        SELECT
+        p.id,
+        p.title,
+        p.images as coverUrl,
+        p.user_id as authorId,
+        u.nickname as authorName,
+        u.avatar as authorAvatar,
+
+        (SELECT COUNT(*) FROM interaction i WHERE i.post_id = p.id AND i.type = 1) as likeCount
+        FROM post p
+        LEFT JOIN user u ON p.user_id = u.id
+        WHERE p.status = 1
+        <if test="category != null">
+            AND p.category = #{category}
+        </if>
+        ORDER BY p.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+</mapper>

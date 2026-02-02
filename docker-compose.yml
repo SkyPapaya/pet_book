@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # 1. MySQL 数据库服务
+  mysql:
+    image: mysql:8.0
+    container_name: pet_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: whm161122309 # 数据库密码，先设为root，方便开发
+      MYSQL_DATABASE: pet_book_db # 自动创建一个空库
+      TZ: Asia/Shanghai # 设置时区，防止时间存进去差8小时
+    ports:
+      - "3306:3306" # 映射端口：左边是本机端口，右边是容器端口
+    volumes:
+      - ./data/mysql:/var/lib/mysql # 数据挂载：把数据存在当前目录下的data文件夹，防止重启丢失
+      - ./config/mysql:/etc/mysql/conf.d # 配置挂载
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci # 解决中文乱码
+
+  # 2. Redis 缓存服务 (用于点赞计数、帖子刷新)
+  redis:
+    image: redis:6.2
+    container_name: pet_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    command: redis-server --appendonly yes # 开启持久化
