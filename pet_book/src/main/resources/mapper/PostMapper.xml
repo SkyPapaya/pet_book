@@ -2,24 +2,67 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.skypapaya.mapper.PostMapper">
 
+    <resultMap id="PostDetailVOMap" type="com.skypapaya.vo.PostDetailVO">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="desc" property="desc"/>
+        <result column="createdAt" property="createdAt"/>
+        <result column="authorId" property="authorId"/>
+        <result column="authorName" property="authorName"/>
+        <result column="authorAvatar" property="authorAvatar"/>
+        <result column="likeCount" property="likeCount"/>
+        <result column="collectCount" property="collectCount"/>
+        <result column="commentCount" property="commentCount"/>
+        <result column="publishIp" property="publishIp"/>
+        <result column="images" property="imageUrls" typeHandler="com.skypapaya.handler.JsonTypeHandler"/>
+    </resultMap>
+<!--    useGeneratedKeys获取插入后的id-->
+    <insert id="insertPost" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO post
+        (user_id,title,content,images,status,is_public,create_time)
+        VALUES(
+        #{userId},#{title},#{content},
+        #{images,typeHandler=com.skypapaya.handler.JsonTypeHandler},
+        #{status},#{isPublic},NOW())
+    </insert>
+
+    <select id="selectPostDetail" resultMap="PostDetailVOMap">
+        SELECT
+            p.id,
+            p.title,
+            p.content AS `desc`,
+            p.images,
+            p.create_time AS createdAt,
+            p.user_id AS authorId,
+            u.nickname AS authorName,
+            u.avatar AS authorAvatar,
+            (SELECT COUNT(*) FROM interaction i WHERE i.target_id = p.id AND i.type = 1) AS likeCount,
+            (SELECT COUNT(*) FROM interaction i WHERE i.target_id = p.id AND i.type = 2) AS collectCount,
+            0 AS commentCount,
+            u.last_login_ip AS publishIp
+        FROM post p
+        LEFT JOIN user u ON p.user_id = u.id
+        WHERE p.id = #{id} AND p.status = 1
+    </select>
+
     <select id="selectFeedList" resultType="com.skypapaya.vo.PostCardVO">
         SELECT
-        p.id,
-        p.title,
-        p.images as coverUrl,
-        p.user_id as authorId,
-        u.nickname as authorName,
-        u.avatar as authorAvatar,
-
-        (SELECT COUNT(*) FROM interaction i WHERE i.post_id = p.id AND i.type = 1) as likeCount
+            p.id,
+            p.title,
+            p.content AS `desc`,
+            p.images AS coverUrl,
+            p.channel,
+            p.user_id AS authorId,
+            u.nickname AS authorName,
+            u.avatar AS authorAvatar,
+            (SELECT COUNT(*) FROM interaction i WHERE i.target_id = p.id AND i.target_type = 1 AND i.type = 1) AS likeCount
         FROM post p
         LEFT JOIN user u ON p.user_id = u.id
         WHERE p.status = 1
-        <if test="category != null">
-            AND p.category = #{category}
+        <if test="channel != null and channel != '' and channel != 'all'">
+            AND p.channel = #{channel}
         </if>
         ORDER BY p.create_time DESC
         LIMIT #{offset}, #{limit}
     </select>
-
 </mapper>

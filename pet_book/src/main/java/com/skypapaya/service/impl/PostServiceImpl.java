@@ -2,13 +2,18 @@ package com.skypapaya.service.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.skypapaya.dto.PublishPostDTO;
+import com.skypapaya.entity.Interaction;
+import com.skypapaya.entity.Post;
+import com.skypapaya.mapper.CommentMapper;
+import com.skypapaya.mapper.InteractionMapper;
 import com.skypapaya.mapper.PostMapper;
 import com.skypapaya.service.PostService;
 import com.skypapaya.vo.PostCardVO;
+import com.skypapaya.vo.PostDetailVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -16,27 +21,24 @@ public class PostServiceImpl implements PostService {
 
     @Autowired
     private PostMapper postMapper;
+    @Autowired
+    private InteractionMapper interactionMapper;
+    @Autowired
+    private CommentMapper commentMapper;
 
-    // JSON 工具类，用于解析数据库里的图片数组字符串
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public List<PostCardVO> getFeedList(Integer category, Integer page, Integer pageSize) {
-        // 1. 计算数据库的分页偏移量 (Offset)
-        // 第1页: (1-1)*10 = 0
-        // 第2页: (2-1)*10 = 10
-        int offset = (page - 1) * pageSize;
+    public List<PostCardVO> getFeedList(String channel, Integer page, Integer size) {
+        // channel 全链路为字符串：all / adopt / knowledge / help，直接传给 Mapper
+        String filterChannel = (channel != null && !channel.isEmpty() && !"all".equalsIgnoreCase(channel)) ? channel : null;
+        int offset = (page - 1) * size;
+        List<PostCardVO> list = postMapper.selectFeedList(filterChannel, offset, size);
 
-        // 2. 查询数据库,用一个list来暂存数据
-        List<PostCardVO> list = postMapper.selectFeedList(category, offset, pageSize);
-
-        // 3. 处理数据：把 JSON 字符串转成单张图片 URL
         for (PostCardVO vo : list) {
-            String imagesJson = vo.getCoverUrl(); // 此时这里面还是 ["url1", "url2"]
-            String firstImage = extractFirstImage(imagesJson);
-            vo.setCoverUrl(firstImage); // 替换成真正的图片链接
+            String imagesJson = vo.getCoverUrl();
+            vo.setCoverUrl(extractFirstImage(imagesJson));
         }
-
         return list;
     }
 
@@ -60,4 +62,87 @@ public class PostServiceImpl implements PostService {
         }
         return null;
     }
+
+    @Override
+    public PostDetailVO getPostDetail(Long id) {
+        PostDetailVO vo = postMapper.selectPostDetail(id);
+        if (vo == null) return null;
+
+        if (vo.getCommentCount() == null) {
+            vo.setCommentCount(0);
+        }
+        Long currentUserId = 1L; // TODO: 从 Token 获取
+        vo.setIsLiked(interactionMapper.checkStatus(currentUserId, id, 1, 1) > 0);
+        vo.setIsCollected(interactionMapper.checkStatus(currentUserId, id, 2, 1) > 0);
+        vo.setIsFollowed(false); // TODO: 查 follow 表
+        return vo;
+    }
+
+    //切换是否喜欢
+    @Override
+    public boolean toggleLike(Long userId, Long postId) {
+        int targetType = 1; // 帖子
+        int type = 1;       // 点赞
+        int count = interactionMapper.checkStatus(userId, postId, type, targetType);
+        if (count > 0) {
+            interactionMapper.deleteInteraction(userId, postId, type, targetType);
+            return false;
+        }
+        Interaction interaction = new Interaction();
+        interaction.setUserId(userId);
+        interaction.setTargetId(postId);
+        interaction.setTargetType(targetType);
+        interaction.setType(type);
+        interactionMapper.insertInteraction(interaction);
+        return true;
+    }
+
+    //切换是否收藏
+    @Override
+    public boolean toggleCollect(Long userId, Long postId) {
+        int targetType = 1;
+        int type = 2;
+        int count = interactionMapper.checkStatus(userId, postId, type, targetType);
+        if (count > 0) {
+            interactionMapper.deleteInteraction(userId, postId, type, targetType);
+            //之前是收藏状态，现在又点了一下，变成未收藏状态
+            return false;
+        }
+        Interaction interaction = new Interaction();
+        interaction.setUserId(userId);
+        interaction.setTargetId(postId);
+        interaction.setTargetType(targetType);
+        interaction.setType(type);
+        interactionMapper.insertInteraction(interaction);
+        return true;
+    }
+
+    //发布帖子
+    @Override
+    public PostCardVO publishPost(Long userId, PublishPostDTO publishPostDTO) {
+        Post post = new Post();
+        post.setUserId(userId);
+        post.setTitle(publishPostDTO.getTitle());
+        post.setContent(publishPostDTO.getContent());
+        post.setChannel(publishPostDTO.getChannel());
+        post.setImages(publishPostDTO.getImages());
+        post.setPublic(publishPostDTO.isPublic());
+        //插入前端传来的帖子，该步插入数据库
+        postMapper.insertPost(post);
+
+        //返回一个简单的视图给前端，这部将数据返回给前端
+        PostCardVO vo = new PostCardVO();
+        vo.setId(post.getId());
+        vo.setTitle(post.getTitle());
+        vo.setCoverUrl(publishPostDTO.getImages().isEmpty() ? null : publishPostDTO.getImages().get(0));
+        return vo;
+
+    }
+
+
 }
+
+
+
+
+

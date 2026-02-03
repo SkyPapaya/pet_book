@@ -10,7 +10,8 @@ export interface PostCard {
   likeCount: number
   collectCount?: number
   commentCount?: number
-  channel?: string // 领养 | 养宠知识 | 求助
+  /** 频道：与后端一致为 adopt | knowledge | help；展示时可用 channelLabel 转成中文 */
+  channel?: string
   /** 详情正文（演示数据用） */
   desc?: string
 }

@@ -27,11 +27,18 @@ const pageSize = 16
 const likedIds = ref<Set<number>>(new Set())
 const channelBarRef = ref<HTMLElement | null>(null)
 
+/** 频道 ID → 展示文案（与后端 channel 字符串一致：adopt/knowledge/help） */
 const channelLabel: Record<ChannelId, string> = {
   all: '',
   adopt: '领养',
-  knowledge: '知识',
+  knowledge: '养宠知识',
   help: '求助',
+}
+
+/** 卡片上的 channel 可能来自 API（adopt/knowledge/help）或 mock（中文），统一转成展示文案 */
+function displayChannel(ch: string | undefined): string {
+  if (!ch) return ''
+  return channelLabel[ch as ChannelId] ?? ch
 }
 
 function formatLikeCount(n: number): string {
@@ -111,7 +118,7 @@ function getMockPosts(channel: ChannelId, pageOffset: number, size: number): Pos
       authorName: demo.authorName,
       authorAvatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${demo.authorSeed}`,
       likeCount: demo.likeCount,
-      channel: channelLabel[channel] || undefined,
+      channel: channelLabel[channel] || undefined, // mock 用中文；真实 API 返回 adopt/knowledge/help，前端用 displayChannel 展示
     })
   }
   return cards
