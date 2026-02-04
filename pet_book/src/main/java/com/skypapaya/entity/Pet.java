@@ -5,16 +5,18 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
-// 删掉 @TableName, @TableId 等 MyBatis-Plus 的注解
 public class Pet {
     private Long id; // 对应数据库 id
     private Long userId;
-    private String nickname;
-    private Integer type;
-    private Integer gender;
-    private LocalDate birthday;
-    private Integer status;
+    private String name;
     private String avatar;
-    private String bio;
+    private String species;
+    private String breed;
+    private Integer gender;//0未知，1.公2母
+    private LocalDate birthday;
+    private String health;
+    private Integer neutered;
+    private String status;
     private LocalDateTime createTime;
+    private LocalDateTime updateTime;
 }

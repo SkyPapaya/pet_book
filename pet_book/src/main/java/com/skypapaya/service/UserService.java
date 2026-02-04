@@ -1,10 +1,12 @@
 package com.skypapaya.service;
 
-import org.springframework.stereotype.Service;
+import com.skypapaya.entity.User;
+import com.skypapaya.vo.UserProfileVO;
 
-@Service
 public interface UserService {
     // 关注/取关
     boolean toggleFollow(Long followerId, Long followeeId);
+    User selectById(Long id);
+    UserProfileVO getProfile(Long userId);
 
 }

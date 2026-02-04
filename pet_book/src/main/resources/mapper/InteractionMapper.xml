@@ -9,6 +9,13 @@
           AND type = #{type}
           AND target_type = #{targetType}
     </select>
+    <select id="countUserReceivedInteract" resultType="int">
+        SELECT COUNT(*)
+        FROM interaction i
+        JOIN post p ON i.target_id = p.id
+        WHERE p.user_id = #{userId}
+        AND i.target_type = 1 -- 只统计帖子的互动
+    </select>
 
     <insert id="insertInteraction">
         INSERT INTO interaction (user_id, target_type, target_id, type)

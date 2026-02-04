@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 @Data
 public class User {
     private Long id; //用户id
-    private String accountId; //账号id
+    private Long accountId; //账号id
     private String password; //密码
     private String nickname;//昵称
     private String avatar;//头像url

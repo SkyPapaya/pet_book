@@ -21,5 +21,6 @@ public interface InteractionMapper {
                           @Param("type") Integer type,
                           @Param("targetType") Integer targetType);
 
+    int countUserReceivedInteract(@Param("userId") Long userId);
 
 }

@@ -18,7 +18,7 @@ public interface FollowMapper {
     int countFollowee(@Param("userId") Long userId);
 
     //统计粉丝数量
-    int countFollower(@Param("followerId") Long userId);
+    int countFollower(@Param("userId") Long userId);
 
 
 }
