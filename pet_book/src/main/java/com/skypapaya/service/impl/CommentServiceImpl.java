@@ -1,6 +1,8 @@
 package com.skypapaya.service.impl;
 
+import com.skypapaya.entity.Interaction;
 import com.skypapaya.mapper.CommentMapper;
+import com.skypapaya.mapper.InteractionMapper;
 import com.skypapaya.service.CommentService;
 import com.skypapaya.vo.CommentVO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +17,8 @@ import java.util.Map;
 public class CommentServiceImpl implements CommentService {
     @Autowired
     CommentMapper commentMapper;
+    @Autowired
+    InteractionMapper interactionMapper;
 
     //发表评论
     @Override
@@ -28,9 +32,9 @@ public class CommentServiceImpl implements CommentService {
         commentMapper.insertComment(c);
     }
 
-    //获取所有评论，并转换为树状结构
+    //获取所有评论，并转换为树状结构（对根评论做简单分页）
     @Override
-    public List<CommentVO> getComments(Long postId) {
+    public List<CommentVO> getComments(Long postId, Integer page, Integer size) {
         //查出所有评论
         List<CommentVO> all = commentMapper.selectByPostId(postId);
         //组装成树
@@ -53,7 +57,32 @@ public class CommentServiceImpl implements CommentService {
                 }
             }
         }
-        return rootComments;
+        // 对根评论做简单分页
+        int p = (page == null || page < 1) ? 1 : page;
+        int s = (size == null || size < 1) ? 10 : size;
+        int fromIndex = (p - 1) * s;
+        if (fromIndex >= rootComments.size()) {
+            return new ArrayList<>();
+        }
+        int toIndex = Math.min(fromIndex + s, rootComments.size());
+        return rootComments.subList(fromIndex, toIndex);
+    }
 
+    @Override
+    public boolean toggleLikeForComment(Long userId, Long commentId) {
+        int targetType = 2; // 2 表示评论
+        int type = 1;       // 1 表示点赞
+        int count = interactionMapper.checkStatus(userId, commentId, type, targetType);
+        if (count > 0) {
+            interactionMapper.deleteInteraction(userId, commentId, type, targetType);
+            return false;
+        }
+        Interaction interaction = new Interaction();
+        interaction.setUserId(userId);
+        interaction.setTargetId(commentId);
+        interaction.setTargetType(targetType);
+        interaction.setType(type);
+        interactionMapper.insertInteraction(interaction);
+        return true;
     }
 }

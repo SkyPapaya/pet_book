@@ -65,4 +65,70 @@
         ORDER BY p.create_time DESC
         LIMIT #{offset}, #{limit}
     </select>
+
+    <!-- 某用户发布的帖子列表 -->
+    <select id="selectUserPosts" resultType="com.skypapaya.vo.PostCardVO">
+        SELECT
+            p.id,
+            p.title,
+            p.content AS `desc`,
+            p.images AS coverUrl,
+            p.channel,
+            p.user_id AS authorId,
+            u.nickname AS authorName,
+            u.avatar AS authorAvatar,
+            (SELECT COUNT(*) FROM interaction i WHERE i.target_id = p.id AND i.target_type = 1 AND i.type = 1) AS likeCount
+        FROM post p
+        LEFT JOIN user u ON p.user_id = u.id
+        WHERE p.status = 1
+          AND p.user_id = #{userId}
+        ORDER BY p.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 某用户收藏的帖子列表 -->
+    <select id="selectUserCollects" resultType="com.skypapaya.vo.PostCardVO">
+        SELECT
+            p.id,
+            p.title,
+            p.content AS `desc`,
+            p.images AS coverUrl,
+            p.channel,
+            p.user_id AS authorId,
+            u.nickname AS authorName,
+            u.avatar AS authorAvatar,
+            (SELECT COUNT(*) FROM interaction i2 WHERE i2.target_id = p.id AND i2.target_type = 1 AND i2.type = 1) AS likeCount
+        FROM interaction i
+        JOIN post p ON i.target_id = p.id
+        LEFT JOIN user u ON p.user_id = u.id
+        WHERE i.user_id = #{userId}
+          AND i.target_type = 1
+          AND i.type = 2
+          AND p.status = 1
+        ORDER BY i.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
+
+    <!-- 某用户点赞的帖子列表 -->
+    <select id="selectUserLikes" resultType="com.skypapaya.vo.PostCardVO">
+        SELECT
+            p.id,
+            p.title,
+            p.content AS `desc`,
+            p.images AS coverUrl,
+            p.channel,
+            p.user_id AS authorId,
+            u.nickname AS authorName,
+            u.avatar AS authorAvatar,
+            (SELECT COUNT(*) FROM interaction i2 WHERE i2.target_id = p.id AND i2.target_type = 1 AND i2.type = 1) AS likeCount
+        FROM interaction i
+        JOIN post p ON i.target_id = p.id
+        LEFT JOIN user u ON p.user_id = u.id
+        WHERE i.user_id = #{userId}
+          AND i.target_type = 1
+          AND i.type = 1
+          AND p.status = 1
+        ORDER BY i.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
 </mapper>

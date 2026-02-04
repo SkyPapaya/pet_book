@@ -6,6 +6,7 @@ import com.skypapaya.dto.PublishPostDTO;
 import com.skypapaya.entity.Interaction;
 import com.skypapaya.entity.Post;
 import com.skypapaya.mapper.CommentMapper;
+import com.skypapaya.mapper.FollowMapper;
 import com.skypapaya.mapper.InteractionMapper;
 import com.skypapaya.mapper.PostMapper;
 import com.skypapaya.service.PostService;
@@ -25,6 +26,8 @@ public class PostServiceImpl implements PostService {
     private InteractionMapper interactionMapper;
     @Autowired
     private CommentMapper commentMapper;
+    @Autowired
+    private FollowMapper followMapper;
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -68,13 +71,20 @@ public class PostServiceImpl implements PostService {
         PostDetailVO vo = postMapper.selectPostDetail(id);
         if (vo == null) return null;
 
-        if (vo.getCommentCount() == null) {
-            vo.setCommentCount(0);
-        }
+        // 真实评论数
+        int commentCount = commentMapper.countByPostId(id);
+        vo.setCommentCount(commentCount);
+
         Long currentUserId = 1L; // TODO: 从 Token 获取
+        // 点赞/收藏状态
         vo.setIsLiked(interactionMapper.checkStatus(currentUserId, id, 1, 1) > 0);
         vo.setIsCollected(interactionMapper.checkStatus(currentUserId, id, 2, 1) > 0);
-        vo.setIsFollowed(false); // TODO: 查 follow 表
+        // 是否已关注作者
+        if (vo.getAuthorId() != null && !vo.getAuthorId().equals(currentUserId)) {
+            vo.setIsFollowed(followMapper.checkFollow(currentUserId, vo.getAuthorId()) > 0);
+        } else {
+            vo.setIsFollowed(false);
+        }
         return vo;
     }
 
@@ -139,6 +149,39 @@ public class PostServiceImpl implements PostService {
 
     }
 
+
+    @Override
+    public List<PostCardVO> getUserPosts(Long userId, Integer page, Integer size) {
+        int offset = (page - 1) * size;
+        List<PostCardVO> list = postMapper.selectUserPosts(userId, offset, size);
+        for (PostCardVO vo : list) {
+            String imagesJson = vo.getCoverUrl();
+            vo.setCoverUrl(extractFirstImage(imagesJson));
+        }
+        return list;
+    }
+
+    @Override
+    public List<PostCardVO> getUserCollects(Long userId, Integer page, Integer size) {
+        int offset = (page - 1) * size;
+        List<PostCardVO> list = postMapper.selectUserCollects(userId, offset, size);
+        for (PostCardVO vo : list) {
+            String imagesJson = vo.getCoverUrl();
+            vo.setCoverUrl(extractFirstImage(imagesJson));
+        }
+        return list;
+    }
+
+    @Override
+    public List<PostCardVO> getUserLikes(Long userId, Integer page, Integer size) {
+        int offset = (page - 1) * size;
+        List<PostCardVO> list = postMapper.selectUserLikes(userId, offset, size);
+        for (PostCardVO vo : list) {
+            String imagesJson = vo.getCoverUrl();
+            vo.setCoverUrl(extractFirstImage(imagesJson));
+        }
+        return list;
+    }
 
 }
 

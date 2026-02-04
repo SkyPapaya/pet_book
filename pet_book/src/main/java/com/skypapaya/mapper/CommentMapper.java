@@ -15,5 +15,8 @@ public interface CommentMapper {
     //差某个帖子的所有评论
     List<CommentVO> selectByPostId(@Param("postId") Long postId);
 
+    //统计某个帖子的评论总数（用于详情 commentCount）
+    int countByPostId(@Param("postId") Long postId);
+
 
 }

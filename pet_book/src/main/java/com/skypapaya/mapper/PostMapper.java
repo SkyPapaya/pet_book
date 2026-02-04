@@ -18,5 +18,20 @@ public interface PostMapper {
 
     int insertPost(Post post);
 
+    // 某用户发布的帖子
+    List<PostCardVO> selectUserPosts(@Param("userId") Long userId,
+                                     @Param("offset") Integer offset,
+                                     @Param("limit") Integer limit);
+
+    // 某用户收藏的帖子
+    List<PostCardVO> selectUserCollects(@Param("userId") Long userId,
+                                        @Param("offset") Integer offset,
+                                        @Param("limit") Integer limit);
+
+    // 某用户点赞的帖子
+    List<PostCardVO> selectUserLikes(@Param("userId") Long userId,
+                                     @Param("offset") Integer offset,
+                                     @Param("limit") Integer limit);
+
 }
 

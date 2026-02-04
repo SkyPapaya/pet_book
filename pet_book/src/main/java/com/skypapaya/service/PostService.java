@@ -39,5 +39,13 @@ public interface PostService {
 
     PostCardVO publishPost(Long userId, PublishPostDTO publishPostDTO);
 
+    // 个人页列表：某用户发布的帖子
+    List<PostCardVO> getUserPosts(Long userId, Integer page, Integer size);
+
+    // 个人页列表：某用户收藏的帖子
+    List<PostCardVO> getUserCollects(Long userId, Integer page, Integer size);
+
+    // 个人页列表：某用户点赞的帖子
+    List<PostCardVO> getUserLikes(Long userId, Integer page, Integer size);
 
 }

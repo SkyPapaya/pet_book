@@ -32,4 +32,9 @@
         WHERE c.post_id = #{postId}
         ORDER BY c.create_time ASC
     </select>
+
+    <!-- 统计某个帖子的评论总数（用于详情 commentCount） -->
+    <select id="countByPostId" resultType="int">
+        SELECT COUNT(*) FROM comment WHERE post_id = #{postId}
+    </select>
 </mapper>

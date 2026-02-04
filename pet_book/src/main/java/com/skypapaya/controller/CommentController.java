@@ -20,15 +20,25 @@ public class CommentController {
     @Autowired
     private CommentService commentService;
 
-    // 获取评论列表
+    // 获取评论列表（保留给内部或调试使用，推荐前端走 /api/post/{id}/comments）
     @GetMapping("/{id}")
     public Result<List<CommentVO>> getComments(@PathVariable Long id) {
-        return Result.success(commentService.getComments(id));
+        return Result.success(commentService.getComments(id, 1, 100));
     }
 
     @PostMapping("/{id}/publish")
     public Result<String> addComment(@PathVariable Long id, @RequestBody PublishCommentDTO dto) {
         commentService.addComment(1L, id, dto.getContent(), dto.getParentId());
         return Result.success("评论成功");
+    }
+
+    /**
+     * 评论点赞/取消点赞（内部或调试使用，推荐前端未来接 /api/comment/{id}/like）
+     */
+    @PostMapping("/{id}/like")
+    public Result<Boolean> likeComment(@PathVariable Long id) {
+        Long currentUserId = 1L;
+        boolean liked = commentService.toggleLikeForComment(currentUserId, id);
+        return Result.success(liked);
     }
 }
