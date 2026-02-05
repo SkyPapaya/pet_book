@@ -13,7 +13,7 @@ public interface PetMapper {
 
     Pet selectById(@Param("id") Long id);
 
-    Pet insertPet(@Param("pet") Pet pet);
+    int insertPet(@Param("pet") Pet pet);
 
     int updatePet(@Param("pet") Pet pet);
 }

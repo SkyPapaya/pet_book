@@ -19,11 +19,11 @@
 <!--    useGeneratedKeys获取插入后的id-->
     <insert id="insertPost" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO post
-        (user_id,title,content,images,status,is_public,create_time)
-        VALUES(
-        #{userId},#{title},#{content},
+        (user_id, title, content, channel, images, status, is_public, create_time)
+        VALUES (
+        #{userId}, #{title}, #{content}, #{channel},
         #{images,typeHandler=com.skypapaya.handler.JsonTypeHandler},
-        #{status},#{isPublic},NOW())
+        #{status}, #{isPublic}, NOW())
     </insert>
 
     <select id="selectPostDetail" resultMap="PostDetailVOMap">

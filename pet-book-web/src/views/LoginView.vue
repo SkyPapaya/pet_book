@@ -15,10 +15,19 @@ const loading = ref(false)
 
 function applyUserFromResponse(data: any) {
   localStorage.setItem('token', data.token)
-  if (appStore.user) {
-    appStore.user.id = data.userId
-    appStore.user.nickname = data.nickname || appStore.user.nickname
-    appStore.user.avatar = data.avatar || appStore.user.avatar
+  // 登录/注册后必须设置 appStore.user，否则个人中心会显示未登录
+  appStore.user = {
+    id: data.userId,
+    nickname: data.nickname ?? '用户',
+    avatar: data.avatar ?? '',
+    accountId: String(data.userId ?? ''),
+    ip: '',
+    signature: '',
+    gender: '',
+    followingCount: 0,
+    followersCount: 0,
+    likesAndCollectCount: 0,
+    pets: [],
   }
 }
 

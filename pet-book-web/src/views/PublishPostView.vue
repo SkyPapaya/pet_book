@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 
 const router = useRouter()
 
@@ -29,6 +30,8 @@ const selectedHashtags = ref<string[]>([])
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const maxMedia = 9
+const publishing = ref(false)
+const publishError = ref('')
 
 function goBack() {
   router.push('/publish')
@@ -70,21 +73,54 @@ function saveDraft() {
   alert('草稿已保存（演示）')
 }
 
-function publish() {
+/** 上传图片并发布帖子，成功后刷新首页并跳转 */
+async function publish() {
   if (!title.value.trim()) {
     alert('请填写标题')
     return
   }
-  console.log('发布笔记', {
-    channel: selectedChannel.value,
-    title: title.value,
-    body: body.value,
-    mediaCount: mediaList.value.length,
-    isPublic: isPublic.value,
-    hashtags: selectedHashtags.value,
-  })
-  alert('发布成功（演示）')
-  router.push('/publish')
+  publishError.value = ''
+  publishing.value = true
+  try {
+    // 仅上传图片（后端目前只存图片 URL；视频暂不提交）
+    const imageItems = mediaList.value.filter((m) => m.type === 'image')
+    const imageUrls: string[] = []
+    for (const item of imageItems) {
+      const form = new FormData()
+      form.append('file', item.file)
+      const up = await axios.post<{ code: number; data?: string; message?: string }>('/api/upload/image', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      if (up.data.code === 200 && up.data.data) {
+        imageUrls.push(up.data.data)
+      } else {
+        throw new Error(up.data.message || '图片上传失败')
+      }
+    }
+
+    const res = await axios.post<{ code: number; message?: string }>('/api/post', {
+      title: title.value.trim(),
+      content: body.value.trim() || undefined,
+      channel: selectedChannel.value,
+      images: imageUrls,
+      isPublic: isPublic.value,
+    })
+    if (res.data.code === 200) {
+      window.dispatchEvent(new CustomEvent('feed-refresh'))
+      router.push('/')
+      return
+    }
+    if (res.data.code === 401) {
+      router.push('/login')
+      return
+    }
+    publishError.value = res.data.message || '发布失败'
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } }; message?: string }
+    publishError.value = err.response?.data?.message || err.message || '网络错误，请稍后重试'
+  } finally {
+    publishing.value = false
+  }
 }
 
 const canAddMore = computed(() => mediaList.value.length < maxMedia)
@@ -208,11 +244,14 @@ const canAddMore = computed(() => mediaList.value.length < maxMedia)
       </section>
     </div>
 
+    <p v-if="publishError" class="publish-error">{{ publishError }}</p>
     <!-- 底部：存草稿、发布笔记 -->
     <footer class="post-footer">
       <div class="post-footer-inner">
         <button type="button" class="btn-draft" @click="saveDraft">存草稿</button>
-        <button type="button" class="btn-publish" @click="publish">发布笔记</button>
+        <button type="button" class="btn-publish" :disabled="publishing" @click="publish">
+          {{ publishing ? '发布中...' : '发布笔记' }}
+        </button>
       </div>
     </footer>
   </div>
@@ -552,6 +591,12 @@ $border: #eee;
   }
 }
 
+.publish-error {
+  margin: 0 20px 12px;
+  font-size: 14px;
+  color: #c00;
+}
+
 .btn-publish {
   flex: 2;
   padding: 14px 24px;
@@ -562,8 +607,12 @@ $border: #eee;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  &:hover {
+  &:hover:not(:disabled) {
     opacity: 0.9;
+  }
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
   }
 }
 </style>

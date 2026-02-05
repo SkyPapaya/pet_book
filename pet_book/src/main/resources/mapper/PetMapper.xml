@@ -2,13 +2,15 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.skypapaya.mapper.PetMapper">
-    <insert id="insertPet" useGeneratedKeys="true" keyProperty="pet.id">
+    <insert id="insertPet"  useGeneratedKeys="true" keyProperty="pet.id" >
         INSERT INTO pet (user_id, name, avatar, species, breed, gender, birthday, health, neutered, status)
-        VALUES (#{pet.userId}, #{pet.name}, #{pet.avatar}, #{pet.species}, #{pet.breed}, #{pet.gender}, #{pet.birthday}, #{pet.health}, #{pet.neutered}, #{pet.status})
+        VALUES (#{pet.userId}, #{pet.name}, #{pet.avatar}, #{pet.species}, #{pet.breed}, #{pet.gender}, #{pet.birthday},
+        #{pet.health}, #{pet.neutered}, #{pet.status})
     </insert>
 
     <select id="selectByUserId" resultType="com.skypapaya.vo.PetVO">
-        SELECT id, user_id AS userId, name, avatar, species, breed, gender, birthday, health, neutered, status, create_time AS createTime
+        SELECT id, user_id AS userId, name, avatar, species, breed, gender, birthday, health, neutered, status,
+        create_time AS createTime
         FROM pet WHERE user_id = #{userId}
     </select>
 

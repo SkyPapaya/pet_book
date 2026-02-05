@@ -143,14 +143,15 @@ public class PostServiceImpl implements PostService {
         post.setChannel(publishPostDTO.getChannel());
         post.setImages(publishPostDTO.getImages());
         post.setPublic(publishPostDTO.isPublic());
-        //插入前端传来的帖子，该步插入数据库
+        post.setStatus(1); // 1=正常展示，否则 feed 的 WHERE p.status=1 会过滤掉
         postMapper.insertPost(post);
 
         //返回一个简单的视图给前端，这部将数据返回给前端
         PostCardVO vo = new PostCardVO();
         vo.setId(post.getId());
         vo.setTitle(post.getTitle());
-        vo.setCoverUrl(publishPostDTO.getImages().isEmpty() ? null : publishPostDTO.getImages().get(0));
+        List<String> images = publishPostDTO.getImages();
+        vo.setCoverUrl(images != null && !images.isEmpty() ? images.get(0) : null);
         return vo;
 
     }
