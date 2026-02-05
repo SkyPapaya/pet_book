@@ -171,15 +171,14 @@ const editProfileError = ref('')
 
 function openEditProfile() {
   const u = appStore.user
-  if (!u) return
   editProfileForm.value = {
-    nickname: u.nickname ?? '',
-    avatar: u.avatar ?? '',
-    signature: u.signature ?? '',
-    gender: typeof u.gender === 'number' ? normGender(u.gender) : (u.gender ?? ''),
-    age: u.age,
-    location: u.location ?? '',
-    profession: u.profession ?? '',
+    nickname: u?.nickname ?? '',
+    avatar: u?.avatar ?? '',
+    signature: u?.signature ?? '',
+    gender: u ? (typeof u.gender === 'number' ? normGender(u.gender) : (u.gender ?? '')) : '',
+    age: u?.age,
+    location: u?.location ?? '',
+    profession: u?.profession ?? '',
   }
   editProfileError.value = ''
   showEditProfileModal.value = true
@@ -545,9 +544,10 @@ async function submitEditPet() {
       </template>
     </div>
 
-    <!-- 编辑资料弹窗 -->
-    <div v-if="showEditProfileModal" class="modal-mask" @click.self="closeEditProfile">
-      <div class="modal-box">
+    <!-- 编辑资料弹窗：挂到 body 避免被父级裁剪 -->
+    <Teleport to="body">
+      <div v-if="showEditProfileModal" class="modal-mask" @click.self="closeEditProfile">
+        <div class="modal-box">
         <h3 class="modal-title">编辑资料</h3>
         <p v-if="editProfileError" class="modal-error">{{ editProfileError }}</p>
         <form class="modal-form" @submit.prevent="submitEditProfile">
@@ -576,12 +576,14 @@ async function submitEditPet() {
             </button>
           </div>
         </form>
+        </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- 添加宠物弹窗 -->
-    <div v-if="showAddPetModal" class="modal-mask" @click.self="closeAddPet">
-      <div class="modal-box">
+    <Teleport to="body">
+      <div v-if="showAddPetModal" class="modal-mask" @click.self="closeAddPet">
+        <div class="modal-box">
         <h3 class="modal-title">添加宠物</h3>
         <p v-if="addPetError" class="modal-error">{{ addPetError }}</p>
         <form class="modal-form" @submit.prevent="submitAddPet">
@@ -612,12 +614,14 @@ async function submitEditPet() {
             </button>
           </div>
         </form>
+        </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- 编辑宠物弹窗 -->
-    <div v-if="showEditPetModal" class="modal-mask" @click.self="closeEditPet">
-      <div class="modal-box">
+    <Teleport to="body">
+      <div v-if="showEditPetModal" class="modal-mask" @click.self="closeEditPet">
+        <div class="modal-box">
         <h3 class="modal-title">编辑宠物</h3>
         <p v-if="editPetError" class="modal-error">{{ editPetError }}</p>
         <form class="modal-form" @submit.prevent="submitEditPet">
@@ -648,8 +652,9 @@ async function submitEditPet() {
             </button>
           </div>
         </form>
+        </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -1016,7 +1021,7 @@ $border: #eee;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999;
 }
 
 .modal-box {
