@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import axios from 'axios'
+import { useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
-import type { UserProfile, Pet } from '../types'
+import type { UserProfile, Pet, PostCard } from '../types'
 
+const route = useRoute()
 const appStore = useAppStore()
 const user = computed(() => appStore.user)
 
@@ -36,24 +39,10 @@ function genderText(profile: UserProfile | null): string {
   return ''
 }
 
-// 我发布的帖子 / 收藏 / 点赞（演示数据，与首页风格一致）
-const postList = ref([
-  { id: 1, coverUrl: 'https://picsum.photos/seed/1011/400/400', title: '小区流浪猫求领养，已驱虫疫苗', likeCount: 2840 },
-  { id: 2, coverUrl: 'https://picsum.photos/seed/2011/400/400', title: '狗狗日常护理小知识分享', likeCount: 15600 },
-  { id: 3, coverUrl: 'https://picsum.photos/seed/1012/400/400', title: '领养代替购买，给毛孩子一个家', likeCount: 3200 },
-  { id: 4, coverUrl: 'https://picsum.photos/seed/2012/400/400', title: '猫咪呕吐怎么办？家庭处理指南', likeCount: 8900 },
-  { id: 5, coverUrl: 'https://picsum.photos/seed/3011/400/400', title: '幼犬喂养注意事项', likeCount: 4200 },
-  { id: 6, coverUrl: 'https://picsum.photos/seed/1013/400/400', title: '养猫必知的十大常识', likeCount: 11200 },
-])
-
-const collectList = ref([
-  { id: 101, coverUrl: 'https://picsum.photos/seed/2013/400/400', title: '收藏的养宠知识', likeCount: 9800 },
-  { id: 102, coverUrl: 'https://picsum.photos/seed/2014/400/400', title: '猫狗驱虫药怎么选', likeCount: 5600 },
-])
-
-const likeList = ref([
-  { id: 201, coverUrl: 'https://picsum.photos/seed/3012/400/400', title: '点赞的求助帖', likeCount: 7200 },
-])
+// 我发布的帖子 / 收藏 / 点赞（从后端接口获取）
+const postList = ref<PostCard[]>([])
+const collectList = ref<PostCard[]>([])
+const likeList = ref<PostCard[]>([])
 
 function formatCount(n: number): string {
   if (n >= 10000) return (n / 10000).toFixed(1) + '万'
@@ -69,6 +58,46 @@ function formatBirthday(birthday?: string): string {
   const d = new Date(birthday)
   return `${d.getMonth() + 1}月${d.getDate()}日`
 }
+
+async function fetchProfile(userId: number) {
+  const url = Number(userId) === Number(appStore.user?.id)
+    ? '/api/user/profile'
+    : `/api/user/${userId}/profile`
+  const res = await axios.get(url)
+  if (res.data.code === 200 && res.data.data) {
+    appStore.user = res.data.data
+  }
+}
+
+async function fetchLists(userId: number) {
+  const [postsRes, collectsRes, likesRes] = await Promise.all([
+    axios.get(`/api/user/${userId}/posts`, { params: { page: 1, size: 30 } }),
+    axios.get(`/api/user/${userId}/collects`, { params: { page: 1, size: 30 } }),
+    axios.get(`/api/user/${userId}/likes`, { params: { page: 1, size: 30 } }),
+  ])
+  if (postsRes.data.code === 200) postList.value = postsRes.data.data ?? []
+  if (collectsRes.data.code === 200) collectList.value = collectsRes.data.data ?? []
+  if (likesRes.data.code === 200) likeList.value = likesRes.data.data ?? []
+}
+
+onMounted(async () => {
+  const userIdParam = route.query.userId
+  const userId = userIdParam ? Number(userIdParam) : undefined
+  const id = userId || (appStore.user?.id as number | undefined)
+  if (!id) return
+  await fetchProfile(id)
+  await fetchLists(id)
+})
+
+watch(
+  () => route.query.userId,
+  async (val) => {
+    const id = val ? Number(val) : (appStore.user?.id as number | undefined)
+    if (!id) return
+    await fetchProfile(id)
+    await fetchLists(id)
+  },
+)
 </script>
 
 <template>

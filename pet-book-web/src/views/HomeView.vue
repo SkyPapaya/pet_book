@@ -146,11 +146,37 @@ function openPost(post: PostCard) {
   appStore.openPost(post.id, detail)
 }
 
-function toggleLikeInFeed(id: number) {
-  const set = new Set(likedIds.value)
-  if (set.has(id)) set.delete(id)
-  else set.add(id)
-  likedIds.value = set
+async function toggleLikeInFeed(id: number) {
+  const prevLiked = likedIds.value.has(id)
+  // 乐观更新
+  {
+    const set = new Set(likedIds.value)
+    if (prevLiked) set.delete(id)
+    else set.add(id)
+    likedIds.value = set
+  }
+  try {
+    const res = await axios.post(`/api/post/${id}/like`)
+    if (res.data.code === 200) {
+      const serverLiked = !!res.data.data
+      const set = new Set(likedIds.value)
+      if (serverLiked) set.add(id)
+      else set.delete(id)
+      likedIds.value = set
+    } else {
+      // 接口报错，回滚
+      const set = new Set(likedIds.value)
+      if (prevLiked) set.add(id)
+      else set.delete(id)
+      likedIds.value = set
+    }
+  } catch {
+    // 请求失败，回滚
+    const set = new Set(likedIds.value)
+    if (prevLiked) set.add(id)
+    else set.delete(id)
+    likedIds.value = set
+  }
 }
 
 function onRefresh() {

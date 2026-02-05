@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
+import axios from 'axios'
 
 type TabType = 'comment' | 'like' | 'follow'
 const activeTab = ref<TabType>('comment')
@@ -10,63 +11,46 @@ const tabs = [
   { key: 'follow' as TabType, label: '新增关注' },
 ]
 
-// 评论和@ mock
-const commentList = ref([
-  {
-    id: 1,
-    userAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=1',
-    userName: '用户A',
-    content: '想领养，怎么联系？',
-    time: '2分钟前',
-    postTitle: '小区流浪猫求领养',
-  },
-  {
-    id: 2,
-    userAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=2',
-    userName: '用户B',
-    content: '@你 回复：谢谢分享！',
-    time: '1小时前',
-    postTitle: '养猫日常',
-  },
-])
+const loading = ref(false)
 
-// 赞和收藏 mock
-const likeList = ref([
-  {
-    id: 1,
-    userAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=3',
-    userName: '用户C',
-    action: '赞了你的笔记',
-    postTitle: '宠物领养经验分享',
-    time: '3小时前',
-  },
-  {
-    id: 2,
-    userAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=4',
-    userName: '用户D',
-    action: '收藏了你的笔记',
-    postTitle: '狗狗喂养指南',
-    time: '昨天',
-  },
-])
+const commentList = ref<any[]>([])
+const likeList = ref<any[]>([])
+const followList = ref<any[]>([])
 
-// 新增关注 mock
-const followList = ref([
-  {
-    id: 1,
-    userAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=5',
-    userName: '用户E',
-    time: '5分钟前',
-  },
-])
+async function fetchNotifications(type: TabType) {
+  loading.value = true
+  try {
+    const res = await axios.get('/api/notification', {
+      params: { type, page: 1, size: 20 },
+    })
+    if (res.data.code === 200) {
+      const list = res.data.data ?? []
+      if (type === 'comment') commentList.value = list
+      else if (type === 'like') likeList.value = list
+      else if (type === 'follow') followList.value = list
+    }
+  } catch {
+    // 失败时保持当前列表（可选：提示）
+  } finally {
+    loading.value = false
+  }
+}
 
-function replyTo(item: { id: number; userName: string }) {
-  console.log('回复', item.userName)
+function replyTo(item: { id: number; actorName?: string }) {
+  console.log('回复', item.actorName ?? '用户')
 }
 
 function likeItem(item: { id: number }) {
   console.log('点赞', item.id)
 }
+
+onMounted(() => {
+  fetchNotifications('comment')
+})
+
+watch(activeTab, (t) => {
+  fetchNotifications(t)
+})
 </script>
 
 <template>
@@ -87,18 +71,14 @@ function likeItem(item: { id: number }) {
     <div class="content">
       <!-- 评论和@ -->
       <template v-if="activeTab === 'comment'">
-        <div
-          v-for="item in commentList"
-          :key="item.id"
-          class="notice-item"
-        >
-          <img :src="item.userAvatar" alt="" class="avatar" />
+        <div v-for="item in commentList" :key="item.id" class="notice-item">
+          <img :src="item.actorAvatar" alt="" class="avatar" />
           <div class="body">
             <p class="text">
-              <span class="name">{{ item.userName }}</span>
+              <span class="name">{{ item.actorName }}</span>
               回复了你：{{ item.content }}
             </p>
-            <p class="meta">{{ item.postTitle }} · {{ item.time }}</p>
+            <p class="meta">{{ item.postTitle }} · {{ item.createdAt }}</p>
             <div class="actions">
               <button type="button" class="btn-reply" @click="replyTo(item)">
                 回复
@@ -113,36 +93,28 @@ function likeItem(item: { id: number }) {
 
       <!-- 赞和收藏 -->
       <template v-else-if="activeTab === 'like'">
-        <div
-          v-for="item in likeList"
-          :key="item.id"
-          class="notice-item"
-        >
-          <img :src="item.userAvatar" alt="" class="avatar" />
+        <div v-for="item in likeList" :key="item.id" class="notice-item">
+          <img :src="item.actorAvatar" alt="" class="avatar" />
           <div class="body">
             <p class="text">
-              <span class="name">{{ item.userName }}</span>
-              {{ item.action }}
+              <span class="name">{{ item.actorName }}</span>
+              赞了你的笔记
             </p>
-            <p class="meta">{{ item.postTitle }} · {{ item.time }}</p>
+            <p class="meta">{{ item.postTitle }} · {{ item.createdAt }}</p>
           </div>
         </div>
       </template>
 
       <!-- 新增关注 -->
       <template v-else-if="activeTab === 'follow'">
-        <div
-          v-for="item in followList"
-          :key="item.id"
-          class="notice-item"
-        >
-          <img :src="item.userAvatar" alt="" class="avatar" />
+        <div v-for="item in followList" :key="item.id" class="notice-item">
+          <img :src="item.actorAvatar" alt="" class="avatar" />
           <div class="body">
             <p class="text">
-              <span class="name">{{ item.userName }}</span>
+              <span class="name">{{ item.actorName }}</span>
               关注了你
             </p>
-            <p class="meta">{{ item.time }}</p>
+            <p class="meta">{{ item.createdAt }}</p>
           </div>
         </div>
       </template>

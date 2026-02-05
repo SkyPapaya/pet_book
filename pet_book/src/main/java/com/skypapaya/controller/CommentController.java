@@ -3,6 +3,7 @@ package com.skypapaya.controller;
 import com.skypapaya.common.Result;
 import com.skypapaya.dto.PublishCommentDTO;
 import com.skypapaya.dto.PublishPostDTO;
+import com.skypapaya.security.CurrentUserHolder;
 import com.skypapaya.service.CommentService;
 import com.skypapaya.service.PostService;
 import com.skypapaya.vo.CommentVO;
@@ -28,7 +29,11 @@ public class CommentController {
 
     @PostMapping("/{id}/publish")
     public Result<String> addComment(@PathVariable Long id, @RequestBody PublishCommentDTO dto) {
-        commentService.addComment(1L, id, dto.getContent(), dto.getParentId());
+        Long currentUserId = CurrentUserHolder.get();
+        if (currentUserId == null) {
+            return Result.error(401, "未登录");
+        }
+        commentService.addComment(currentUserId, id, dto.getContent(), dto.getParentId());
         return Result.success("评论成功");
     }
 
@@ -37,7 +42,10 @@ public class CommentController {
      */
     @PostMapping("/{id}/like")
     public Result<Boolean> likeComment(@PathVariable Long id) {
-        Long currentUserId = 1L;
+        Long currentUserId = CurrentUserHolder.get();
+        if (currentUserId == null) {
+            return Result.error(401, "未登录");
+        }
         boolean liked = commentService.toggleLikeForComment(currentUserId, id);
         return Result.success(liked);
     }

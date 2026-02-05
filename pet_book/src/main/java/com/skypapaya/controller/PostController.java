@@ -3,6 +3,7 @@ package com.skypapaya.controller;
 import com.skypapaya.common.Result;
 import com.skypapaya.dto.PublishCommentDTO;
 import com.skypapaya.dto.PublishPostDTO;
+import com.skypapaya.security.CurrentUserHolder;
 import com.skypapaya.service.CommentService;
 import com.skypapaya.service.PostService;
 import com.skypapaya.vo.CommentVO;
@@ -66,7 +67,10 @@ public class PostController {
      */
     @PostMapping("/{id}/comments")
     public Result<String> addComment(@PathVariable Long id, @RequestBody PublishCommentDTO dto) {
-        Long currentUserId = 1L; // TODO: 登录后从上下文获取
+        Long currentUserId = CurrentUserHolder.get();
+        if (currentUserId == null) {
+            return Result.error(401, "未登录");
+        }
         commentService.addComment(currentUserId, id, dto.getContent(), dto.getParentId());
         return Result.success("评论成功");
     }
@@ -77,8 +81,10 @@ public class PostController {
      */
     @PostMapping("/{id}/like")
     public Result<Boolean> likePost(@PathVariable Long id) {
-        // TODO: 后续接入登录后，从 Token 获取 userId
-        Long currentUserId = 1L;
+        Long currentUserId = CurrentUserHolder.get();
+        if (currentUserId == null) {
+            return Result.error(401, "未登录");
+        }
         boolean isLiked = postService.toggleLike(currentUserId, id);
         // 返回最新的状态给前端，前端可以根据这个变红心/变灰心
         return Result.success(isLiked);
@@ -86,14 +92,20 @@ public class PostController {
 
     @PostMapping("/{id}/collect")
     public Result<Boolean> collectPost(@PathVariable Long id) {
-        Long currentUserId = 1L;
+        Long currentUserId = CurrentUserHolder.get();
+        if (currentUserId == null) {
+            return Result.error(401, "未登录");
+        }
         boolean isCollect = postService.toggleCollect(currentUserId, id);
         return Result.success(isCollect);
     }
 
     @PostMapping
     public Result<PostCardVO> publish(@RequestBody PublishPostDTO dto) {
-        Long currentUserId = 1L;
+        Long currentUserId = CurrentUserHolder.get();
+        if (currentUserId == null) {
+            return Result.error(401, "未登录");
+        }
         PostCardVO vo = postService.publishPost(currentUserId, dto);
         return Result.success(vo);
     }

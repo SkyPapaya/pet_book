@@ -2,12 +2,15 @@ package com.skypapaya.controller;
 
 import com.skypapaya.common.Result;
 import com.skypapaya.entity.User;
+import com.skypapaya.security.CurrentUserHolder;
 import com.skypapaya.service.PostService;
 import com.skypapaya.service.UserService;
 import com.skypapaya.vo.PostCardVO;
 import com.skypapaya.vo.UserProfileVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/user")
@@ -24,7 +27,10 @@ public class UserController {
      */
     @PostMapping("/{id}/follow")
     public Result<Boolean> follow(@PathVariable Long id) {
-        Long currentUserId = 1L; // 暂写死
+        Long currentUserId = CurrentUserHolder.get();
+        if (currentUserId == null) {
+            return Result.error(401, "未登录");
+        }
         boolean isFollowed = userService.toggleFollow(currentUserId, id);
         return Result.success(isFollowed);
     }
@@ -42,7 +48,10 @@ public class UserController {
      */
     @GetMapping("/profile")
     public Result<UserProfileVO> getMyProfile() {
-        Long currentUserId = 1L; // 暂写死
+        Long currentUserId = CurrentUserHolder.get();
+        if (currentUserId == null) {
+            return Result.error(401, "未登录");
+        }
         return Result.success(userService.getProfile(currentUserId));
     }
 

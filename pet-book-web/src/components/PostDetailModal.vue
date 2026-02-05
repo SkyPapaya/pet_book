@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import axios from 'axios'
 import { useAppStore } from '../stores/app'
 import type { PostDetail, Comment } from '../types'
 
@@ -109,18 +110,64 @@ watch(
   { immediate: true }
 )
 
-function toggleLike() {
-  isLiked.value = !isLiked.value
+async function toggleLike() {
+  if (!post.value) return
+  const postId = post.value.id
+  const prev = isLiked.value
+  isLiked.value = !prev
   likeCount.value += isLiked.value ? 1 : -1
+  try {
+    const res = await axios.post(`/api/post/${postId}/like`)
+    if (res.data.code === 200) {
+      const serverLiked = !!res.data.data
+      if (serverLiked !== isLiked.value) {
+        likeCount.value += serverLiked ? 1 : -1
+        isLiked.value = serverLiked
+      }
+    }
+  } catch {
+    likeCount.value += prev ? 1 : -1
+    isLiked.value = prev
+  }
 }
 
-function toggleCollect() {
-  isCollected.value = !isCollected.value
+async function toggleCollect() {
+  if (!post.value) return
+  const postId = post.value.id
+  const prev = isCollected.value
+  isCollected.value = !prev
   collectCount.value += isCollected.value ? 1 : -1
+  try {
+    const res = await axios.post(`/api/post/${postId}/collect`)
+    if (res.data.code === 200) {
+      const serverCollected = !!res.data.data
+      if (serverCollected !== isCollected.value) {
+        collectCount.value += serverCollected ? 1 : -1
+        isCollected.value = serverCollected
+      }
+    }
+  } catch {
+    collectCount.value += prev ? 1 : -1
+    isCollected.value = prev
+  }
 }
 
-function toggleFollow() {
-  isFollowed.value = !isFollowed.value
+async function toggleFollow() {
+  if (!post.value) return
+  const authorId = post.value.authorId
+  const prev = isFollowed.value
+  isFollowed.value = !prev
+  try {
+    const res = await axios.post(`/api/user/${authorId}/follow`)
+    if (res.data.code === 200) {
+      const serverFollowed = !!res.data.data
+      isFollowed.value = serverFollowed
+    } else {
+      isFollowed.value = prev
+    }
+  } catch {
+    isFollowed.value = prev
+  }
 }
 
 function firstReply(c: Comment): Comment {
@@ -242,15 +289,43 @@ function collapseCommentInput() {
   commentInputRef.value?.blur()
 }
 
-function likeComment(c: Comment) {
-  c.likeCount = (c.likeCount ?? 0) + (c.isLiked ? -1 : 1)
-  c.isLiked = !c.isLiked
+async function likeComment(c: Comment) {
+  const prev = !!c.isLiked
+  c.isLiked = !prev
+  c.likeCount = (c.likeCount ?? 0) + (c.isLiked ? 1 : -1)
+  try {
+    const res = await axios.post(`/api/comment/${c.id}/like`)
+    if (res.data.code === 200) {
+      const serverLiked = !!res.data.data
+      if (serverLiked !== c.isLiked) {
+        c.likeCount += serverLiked ? 1 : -1
+        c.isLiked = serverLiked
+      }
+    }
+  } catch {
+    c.likeCount += prev ? 1 : -1
+    c.isLiked = prev
+  }
   comments.value.sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0))
 }
 
-function likeReply(r: Comment) {
-  r.likeCount = (r.likeCount ?? 0) + (r.isLiked ? -1 : 1)
-  r.isLiked = !r.isLiked
+async function likeReply(r: Comment) {
+  const prev = !!r.isLiked
+  r.isLiked = !prev
+  r.likeCount = (r.likeCount ?? 0) + (r.isLiked ? 1 : -1)
+  try {
+    const res = await axios.post(`/api/comment/${r.id}/like`)
+    if (res.data.code === 200) {
+      const serverLiked = !!res.data.data
+      if (serverLiked !== r.isLiked) {
+        r.likeCount += serverLiked ? 1 : -1
+        r.isLiked = serverLiked
+      }
+    }
+  } catch {
+    r.likeCount += prev ? 1 : -1
+    r.isLiked = prev
+  }
 }
 </script>
 

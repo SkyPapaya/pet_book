@@ -8,4 +8,8 @@ import org.apache.ibatis.annotations.Param;
 public interface UserMapper {
     public User selectById(@Param("userId") Long userId);
 
+    public User selectByAccountId(@Param("accountId") Long accountId);
+
+    public int insertUser(User user);
+
 }

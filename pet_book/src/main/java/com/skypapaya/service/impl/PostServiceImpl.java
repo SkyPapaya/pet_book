@@ -75,14 +75,20 @@ public class PostServiceImpl implements PostService {
         int commentCount = commentMapper.countByPostId(id);
         vo.setCommentCount(commentCount);
 
-        Long currentUserId = 1L; // TODO: 从 Token 获取
-        // 点赞/收藏状态
-        vo.setIsLiked(interactionMapper.checkStatus(currentUserId, id, 1, 1) > 0);
-        vo.setIsCollected(interactionMapper.checkStatus(currentUserId, id, 2, 1) > 0);
-        // 是否已关注作者
-        if (vo.getAuthorId() != null && !vo.getAuthorId().equals(currentUserId)) {
-            vo.setIsFollowed(followMapper.checkFollow(currentUserId, vo.getAuthorId()) > 0);
+        Long currentUserId = com.skypapaya.security.CurrentUserHolder.get();
+        if (currentUserId != null) {
+            // 点赞/收藏状态
+            vo.setIsLiked(interactionMapper.checkStatus(currentUserId, id, 1, 1) > 0);
+            vo.setIsCollected(interactionMapper.checkStatus(currentUserId, id, 2, 1) > 0);
+            // 是否已关注作者
+            if (vo.getAuthorId() != null && !vo.getAuthorId().equals(currentUserId)) {
+                vo.setIsFollowed(followMapper.checkFollow(currentUserId, vo.getAuthorId()) > 0);
+            } else {
+                vo.setIsFollowed(false);
+            }
         } else {
+            vo.setIsLiked(false);
+            vo.setIsCollected(false);
             vo.setIsFollowed(false);
         }
         return vo;
