@@ -15,5 +15,20 @@
         INSERT INTO user (account_id, password, nickname, create_time, update_time)
         VALUES (#{accountId}, #{password}, #{nickname}, NOW(), NOW())
     </insert>
+
+    <update id="updateUser">
+        UPDATE user
+        <set>
+            <if test="nickname != null">nickname = #{nickname},</if>
+            <if test="avatar != null">avatar = #{avatar},</if>
+            <if test="signature != null">signature = #{signature},</if>
+            <if test="gender != null">gender = #{gender},</if>
+            <if test="age != null">age = #{age},</if>
+            <if test="location != null">location = #{location},</if>
+            <if test="profession != null">profession = #{profession},</if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{id}
+    </update>
 </mapper>
 

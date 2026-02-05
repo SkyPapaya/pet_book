@@ -7,6 +7,7 @@ import com.skypapaya.service.PostService;
 import com.skypapaya.service.UserService;
 import com.skypapaya.vo.PostCardVO;
 import com.skypapaya.vo.UserProfileVO;
+import lombok.Data;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -62,6 +63,32 @@ public class UserController {
     @GetMapping("/{id}/profile")
     public Result<UserProfileVO> getUserProfile(@PathVariable Long id) {
         return Result.success(userService.getProfile(id));
+    }
+
+    /**
+     * 更新当前用户个人资料 PUT /api/user/profile
+     */
+    @PutMapping("/profile")
+    public Result<Void> updateMyProfile(@RequestBody UpdateProfileRequest req) {
+        Long currentUserId = CurrentUserHolder.get();
+        if (currentUserId == null) {
+            return Result.error(401, "未登录");
+        }
+        userService.updateProfile(currentUserId,
+                req.getNickname(), req.getAvatar(), req.getSignature(),
+                req.getGender(), req.getAge(), req.getLocation(), req.getProfession());
+        return Result.success(null);
+    }
+
+    @Data
+    public static class UpdateProfileRequest {
+        private String nickname;
+        private String avatar;
+        private String signature;
+        private Integer gender; // 0未知 1男 2女
+        private Integer age;
+        private String location;
+        private String profession;
     }
 
     /**

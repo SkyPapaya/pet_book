@@ -7,14 +7,16 @@ import java.time.LocalDateTime;
 
 @Data
 public class PetVO {
-    private Long id; // 对应数据库 id
+    private Long id;
     private Long userId;
-    private String nickname;
-    private Integer type;
-    private Integer gender;
-    private LocalDate birthday;
-    private Integer status;
+    private String name;
     private String avatar;
-    private String bio;
+    private String species;
+    private String breed;
+    private Integer gender; // 0未知 1公 2母
+    private LocalDate birthday;
+    private String health;
+    private Integer neutered; // 0否 1是
+    private Integer status;
     private LocalDateTime createTime;
 }

@@ -54,7 +54,13 @@ public class UserServiceImpl implements UserService {
         vo.setNickname(user.getNickname());
         vo.setAvatar(user.getAvatar());
         vo.setAccountId(user.getAccountId());
+        vo.setSignature(user.getSignature());
         vo.setDesc(user.getSignature());
+        vo.setGender(user.getGender());
+        vo.setAge(user.getAge());
+        vo.setLocation(user.getLocation());
+        vo.setProfession(user.getProfession());
+        vo.setIp(user.getLastLoginIp());
 
         // 2. 查统计数据
         vo.setFollowingCount(followMapper.countFollowee(userId));
@@ -66,5 +72,20 @@ public class UserServiceImpl implements UserService {
         vo.setPets(petMapper.selectByUserId(userId));
 
         return vo;
+    }
+
+    @Override
+    public void updateProfile(Long userId, String nickname, String avatar, String signature,
+                              Integer gender, Integer age, String location, String profession) {
+        User user = userMapper.selectById(userId);
+        if (user == null) return;
+        if (nickname != null) user.setNickname(nickname);
+        if (avatar != null) user.setAvatar(avatar);
+        if (signature != null) user.setSignature(signature);
+        if (gender != null) user.setGender(gender);
+        if (age != null) user.setAge(age);
+        if (location != null) user.setLocation(location);
+        if (profession != null) user.setProfession(profession);
+        userMapper.updateUser(user);
     }
 }

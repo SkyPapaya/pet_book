@@ -9,4 +9,6 @@ public interface UserService {
     User selectById(Long id);
     UserProfileVO getProfile(Long userId);
 
+    void updateProfile(Long userId, String nickname, String avatar, String signature,
+                      Integer gender, Integer age, String location, String profession);
 }

@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import type { UserProfile, Pet, PostCard } from '../types'
 
 const route = useRoute()
+const router = useRouter()
 const appStore = useAppStore()
 const user = computed(() => appStore.user)
+
+/** 是否为当前登录用户自己的主页（可编辑） */
+const isSelf = computed(() => !route.query.userId)
 
 const activeTab = ref<'posts' | 'collect' | 'likes'>('posts')
 
@@ -27,15 +31,30 @@ const petsFoldedCount = computed(() => {
   return petExpand.value ? 0 : n - PET_DISPLAY_LIMIT
 })
 
+/** 后端 gender 0/1/2 -> 前端 'male'|'female'|'' */
+function normGender(g: number | null | undefined): 'male' | 'female' | '' {
+  if (g === 1) return 'male'
+  if (g === 2) return 'female'
+  return ''
+}
+/** 前端性别 -> 后端 0/1/2 */
+function genderToNum(g: 'male' | 'female' | ''): number {
+  if (g === 'male') return 1
+  if (g === 'female') return 2
+  return 0
+}
+
 function petGenderText(pet: Pet): string {
-  return pet.gender === 'male' ? '公' : '母'
+  const ge = typeof pet.gender === 'number' ? normGender(pet.gender) : pet.gender
+  return ge === 'male' ? '公' : ge === 'female' ? '母' : ''
 }
 
 // 性别展示文案
 function genderText(profile: UserProfile | null): string {
   if (!profile?.gender) return ''
-  if (profile.gender === 'male') return '♂'
-  if (profile.gender === 'female') return '♀'
+  const g = typeof profile.gender === 'number' ? normGender(profile.gender) : profile.gender
+  if (g === 'male') return '♂'
+  if (g === 'female') return '♀'
   return ''
 }
 
@@ -59,13 +78,50 @@ function formatBirthday(birthday?: string): string {
   return `${d.getMonth() + 1}月${d.getDate()}日`
 }
 
+/** 将后端返回的 profile 转为前端 UserProfile 形状（性别、宠物字段等） */
+function normalizeProfile(raw: Record<string, unknown>): UserProfile {
+  const p = raw as UserProfile & { gender?: number; pets?: Array<Record<string, unknown>> }
+  const profile: UserProfile = {
+    id: p.id,
+    nickname: p.nickname ?? '',
+    avatar: p.avatar ?? '',
+    accountId: String(p.accountId ?? ''),
+    ip: p.ip ?? '',
+    signature: p.signature ?? (p as Record<string, unknown>).desc ?? '',
+    gender: typeof p.gender === 'number' ? normGender(p.gender) : (p.gender ?? ''),
+    age: p.age,
+    location: p.location,
+    profession: p.profession,
+    followingCount: p.followingCount ?? 0,
+    followersCount: p.followersCount ?? 0,
+    likesAndCollectCount: p.likesAndCollectCount ?? 0,
+    pets: [],
+  }
+  const list = raw.pets as Array<Record<string, unknown>> | undefined
+  if (Array.isArray(list)) {
+    profile.pets = list.map((r) => ({
+      id: r.id as number,
+      name: (r.name as string) ?? '',
+      avatar: (r.avatar as string) ?? '',
+      species: (r.species as string) ?? '',
+      breed: (r.breed as string) | undefined,
+      gender: normGender(r.gender as number) as 'male' | 'female',
+      birthday: (r.birthday as string) | undefined,
+      ageText: (r.ageText as string) | undefined,
+      health: (r.health as string) ?? '',
+      neutered: (r.neutered as number) === 1,
+    }))
+  }
+  return profile
+}
+
 async function fetchProfile(userId: number) {
   const url = Number(userId) === Number(appStore.user?.id)
     ? '/api/user/profile'
     : `/api/user/${userId}/profile`
   const res = await axios.get(url)
   if (res.data.code === 200 && res.data.data) {
-    appStore.user = res.data.data
+    appStore.user = normalizeProfile(res.data.data)
   }
 }
 
@@ -98,6 +154,208 @@ watch(
     await fetchLists(id)
   },
 )
+
+// ---------- 编辑资料弹窗 ----------
+const showEditProfileModal = ref(false)
+const editProfileForm = ref({
+  nickname: '',
+  avatar: '',
+  signature: '',
+  gender: '' as 'male' | 'female' | '',
+  age: undefined as number | undefined,
+  location: '',
+  profession: '',
+})
+const editProfileLoading = ref(false)
+const editProfileError = ref('')
+
+function openEditProfile() {
+  const u = appStore.user
+  if (!u) return
+  editProfileForm.value = {
+    nickname: u.nickname ?? '',
+    avatar: u.avatar ?? '',
+    signature: u.signature ?? '',
+    gender: typeof u.gender === 'number' ? normGender(u.gender) : (u.gender ?? ''),
+    age: u.age,
+    location: u.location ?? '',
+    profession: u.profession ?? '',
+  }
+  editProfileError.value = ''
+  showEditProfileModal.value = true
+}
+
+function closeEditProfile() {
+  showEditProfileModal.value = false
+}
+
+async function submitEditProfile() {
+  editProfileError.value = ''
+  editProfileLoading.value = true
+  try {
+    const f = editProfileForm.value
+    const res = await axios.put('/api/user/profile', {
+      nickname: f.nickname || undefined,
+      avatar: f.avatar || undefined,
+      signature: f.signature || undefined,
+      gender: genderToNum(f.gender),
+      age: f.age,
+      location: f.location || undefined,
+      profession: f.profession || undefined,
+    })
+    if (res.data.code === 200) {
+      const id = appStore.user?.id
+      if (id) await fetchProfile(id)
+      closeEditProfile()
+    } else {
+      editProfileError.value = res.data.message || '保存失败'
+    }
+  } catch (e: unknown) {
+    editProfileError.value = (e as { response?: { data?: { message?: string } } })?.response?.data?.message || '网络错误'
+  } finally {
+    editProfileLoading.value = false
+  }
+}
+
+// ---------- 添加宠物弹窗 ----------
+const showAddPetModal = ref(false)
+const addPetForm = ref({
+  name: '',
+  avatar: '',
+  species: '',
+  breed: '',
+  gender: 'male' as 'male' | 'female',
+  birthday: '',
+  health: '',
+  neutered: false,
+})
+const addPetLoading = ref(false)
+const addPetError = ref('')
+
+function openAddPet() {
+  addPetForm.value = {
+    name: '',
+    avatar: '',
+    species: '',
+    breed: '',
+    gender: 'male',
+    birthday: '',
+    health: '',
+    neutered: false,
+  }
+  addPetError.value = ''
+  showAddPetModal.value = true
+}
+
+function closeAddPet() {
+  showAddPetModal.value = false
+}
+
+async function submitAddPet() {
+  if (!addPetForm.value.name.trim()) {
+    addPetError.value = '请填写宠物名称'
+    return
+  }
+  addPetError.value = ''
+  addPetLoading.value = true
+  try {
+    const f = addPetForm.value
+    const res = await axios.post('/api/pet/add', {
+      name: f.name.trim(),
+      avatar: f.avatar || undefined,
+      species: f.species || undefined,
+      breed: f.breed || undefined,
+      gender: f.gender === 'male' ? 1 : 2,
+      birthday: f.birthday || undefined,
+      health: f.health || undefined,
+      neutered: f.neutered ? 1 : 0,
+    })
+    if (res.data.code === 200) {
+      const id = appStore.user?.id
+      if (id) await fetchProfile(id)
+      closeAddPet()
+    } else {
+      addPetError.value = res.data.message || '添加失败'
+    }
+  } catch (e: unknown) {
+    addPetError.value = (e as { response?: { data?: { message?: string } } })?.response?.data?.message || '网络错误'
+  } finally {
+    addPetLoading.value = false
+  }
+}
+
+// ---------- 编辑宠物弹窗 ----------
+const showEditPetModal = ref(false)
+const editingPetId = ref<number | null>(null)
+const editPetForm = ref({
+  name: '',
+  avatar: '',
+  species: '',
+  breed: '',
+  gender: 'male' as 'male' | 'female',
+  birthday: '',
+  health: '',
+  neutered: false,
+})
+const editPetLoading = ref(false)
+const editPetError = ref('')
+
+function openEditPet(pet: Pet) {
+  editingPetId.value = pet.id
+  const ge = typeof pet.gender === 'number' ? normGender(pet.gender) : pet.gender
+  editPetForm.value = {
+    name: pet.name ?? '',
+    avatar: pet.avatar ?? '',
+    species: pet.species ?? '',
+    breed: pet.breed ?? '',
+    gender: (ge === 'female' ? 'female' : 'male') as 'male' | 'female',
+    birthday: pet.birthday ? String(pet.birthday).slice(0, 10) : '',
+    health: pet.health ?? '',
+    neutered: !!pet.neutered,
+  }
+  editPetError.value = ''
+  showEditPetModal.value = true
+}
+
+function closeEditPet() {
+  showEditPetModal.value = false
+  editingPetId.value = null
+}
+
+async function submitEditPet() {
+  const id = editingPetId.value
+  if (!id) return
+  if (!editPetForm.value.name.trim()) {
+    editPetError.value = '请填写宠物名称'
+    return
+  }
+  editPetError.value = ''
+  editPetLoading.value = true
+  try {
+    const f = editPetForm.value
+    const res = await axios.put(`/api/pet/${id}`, {
+      name: f.name.trim(),
+      avatar: f.avatar || undefined,
+      species: f.species || undefined,
+      breed: f.breed || undefined,
+      gender: f.gender === 'male' ? 1 : 2,
+      birthday: f.birthday || undefined,
+      health: f.health || undefined,
+      neutered: f.neutered ? 1 : 0,
+    })
+    if (res.data.code === 200) {
+      const uid = appStore.user?.id
+      if (uid) await fetchProfile(uid)
+      closeEditPet()
+    } else {
+      editPetError.value = res.data.message || '保存失败'
+    }
+  } catch (e: unknown) {
+    editPetError.value = (e as { response?: { data?: { message?: string } } })?.response?.data?.message || '网络错误'
+  } finally {
+    editPetLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -130,12 +388,29 @@ watch(
           <span class="stat-item"><strong>{{ formatCount(user?.likesAndCollectCount ?? 0) }}</strong> 获赞与收藏</span>
         </div>
       </div>
+      <div v-if="isSelf" class="header-actions">
+        <button type="button" class="btn-edit-profile" @click="openEditProfile">
+          编辑资料
+        </button>
+        <button
+          type="button"
+          class="btn-logout"
+          @click="() => { appStore.logout(); router.push('/login') }"
+        >
+          退出登录
+        </button>
+      </div>
     </div>
 
-    <!-- 我的宠物：最多展示 2 个，多余折叠可展开 -->
-    <section v-if="pets.length" class="pets-section">
-      <h2 class="section-title">我的宠物</h2>
-      <div class="pets-grid">
+    <!-- 我的宠物：最多展示 2 个，多余折叠可展开；本人可添加/编辑 -->
+    <section class="pets-section">
+      <div class="pets-section-head">
+        <h2 class="section-title">我的宠物</h2>
+        <button v-if="isSelf" type="button" class="btn-add-pet" @click="openAddPet">
+          添加宠物
+        </button>
+      </div>
+      <div v-if="pets.length" class="pets-grid">
         <div
           v-for="pet in petsDisplay"
           :key="pet.id"
@@ -161,9 +436,13 @@ watch(
             <div v-if="pet.neutered !== undefined" class="pet-meta">
               {{ pet.neutered ? '已绝育' : '未绝育' }}
             </div>
+            <button v-if="isSelf" type="button" class="btn-edit-pet" @click="openEditPet(pet)">
+              编辑
+            </button>
           </div>
         </div>
       </div>
+      <p v-else-if="isSelf" class="pets-empty">暂无宠物，点击上方「添加宠物」添加</p>
       <button
         v-if="petsFoldedCount > 0"
         type="button"
@@ -265,6 +544,112 @@ watch(
         </div>
       </template>
     </div>
+
+    <!-- 编辑资料弹窗 -->
+    <div v-if="showEditProfileModal" class="modal-mask" @click.self="closeEditProfile">
+      <div class="modal-box">
+        <h3 class="modal-title">编辑资料</h3>
+        <p v-if="editProfileError" class="modal-error">{{ editProfileError }}</p>
+        <form class="modal-form" @submit.prevent="submitEditProfile">
+          <label>昵称</label>
+          <input v-model="editProfileForm.nickname" type="text" placeholder="昵称" />
+          <label>头像 URL</label>
+          <input v-model="editProfileForm.avatar" type="text" placeholder="头像链接" />
+          <label>个性签名</label>
+          <textarea v-model="editProfileForm.signature" placeholder="个性签名" rows="2" />
+          <label>性别</label>
+          <select v-model="editProfileForm.gender">
+            <option value="">保密</option>
+            <option value="male">男</option>
+            <option value="female">女</option>
+          </select>
+          <label>年龄</label>
+          <input v-model.number="editProfileForm.age" type="number" min="0" placeholder="年龄" />
+          <label>所在地</label>
+          <input v-model="editProfileForm.location" type="text" placeholder="如：江苏南京" />
+          <label>职业</label>
+          <input v-model="editProfileForm.profession" type="text" placeholder="职业" />
+          <div class="modal-actions">
+            <button type="button" class="btn-cancel" @click="closeEditProfile">取消</button>
+            <button type="submit" class="btn-submit" :disabled="editProfileLoading">
+              {{ editProfileLoading ? '保存中...' : '保存' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 添加宠物弹窗 -->
+    <div v-if="showAddPetModal" class="modal-mask" @click.self="closeAddPet">
+      <div class="modal-box">
+        <h3 class="modal-title">添加宠物</h3>
+        <p v-if="addPetError" class="modal-error">{{ addPetError }}</p>
+        <form class="modal-form" @submit.prevent="submitAddPet">
+          <label>名字 <span class="required">*</span></label>
+          <input v-model="addPetForm.name" type="text" placeholder="宠物名字" />
+          <label>头像 URL</label>
+          <input v-model="addPetForm.avatar" type="text" placeholder="头像链接" />
+          <label>种类</label>
+          <input v-model="addPetForm.species" type="text" placeholder="如：猫、狗" />
+          <label>品种</label>
+          <input v-model="addPetForm.breed" type="text" placeholder="如：橘猫、金毛" />
+          <label>性别</label>
+          <select v-model="addPetForm.gender">
+            <option value="male">公</option>
+            <option value="female">母</option>
+          </select>
+          <label>生日</label>
+          <input v-model="addPetForm.birthday" type="date" />
+          <label>健康情况</label>
+          <input v-model="addPetForm.health" type="text" placeholder="如：健康" />
+          <label class="checkbox-label">
+            <input v-model="addPetForm.neutered" type="checkbox" /> 已绝育
+          </label>
+          <div class="modal-actions">
+            <button type="button" class="btn-cancel" @click="closeAddPet">取消</button>
+            <button type="submit" class="btn-submit" :disabled="addPetLoading">
+              {{ addPetLoading ? '添加中...' : '添加' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 编辑宠物弹窗 -->
+    <div v-if="showEditPetModal" class="modal-mask" @click.self="closeEditPet">
+      <div class="modal-box">
+        <h3 class="modal-title">编辑宠物</h3>
+        <p v-if="editPetError" class="modal-error">{{ editPetError }}</p>
+        <form class="modal-form" @submit.prevent="submitEditPet">
+          <label>名字 <span class="required">*</span></label>
+          <input v-model="editPetForm.name" type="text" placeholder="宠物名字" />
+          <label>头像 URL</label>
+          <input v-model="editPetForm.avatar" type="text" placeholder="头像链接" />
+          <label>种类</label>
+          <input v-model="editPetForm.species" type="text" placeholder="如：猫、狗" />
+          <label>品种</label>
+          <input v-model="editPetForm.breed" type="text" placeholder="如：橘猫、金毛" />
+          <label>性别</label>
+          <select v-model="editPetForm.gender">
+            <option value="male">公</option>
+            <option value="female">母</option>
+          </select>
+          <label>生日</label>
+          <input v-model="editPetForm.birthday" type="date" />
+          <label>健康情况</label>
+          <input v-model="editPetForm.health" type="text" placeholder="如：健康" />
+          <label class="checkbox-label">
+            <input v-model="editPetForm.neutered" type="checkbox" /> 已绝育
+          </label>
+          <div class="modal-actions">
+            <button type="button" class="btn-cancel" @click="closeEditPet">取消</button>
+            <button type="submit" class="btn-submit" :disabled="editPetLoading">
+              {{ editPetLoading ? '保存中...' : '保存' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -290,6 +675,42 @@ $border: #eee;
   gap: 28px;
   padding-bottom: 24px;
   border-bottom: 1px solid $border;
+}
+
+.header-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-edit-profile {
+  padding: 6px 14px;
+  border-radius: 16px;
+  border: 1px solid $primary;
+  background: #fff;
+  font-size: 13px;
+  color: $primary;
+  cursor: pointer;
+}
+.btn-edit-profile:hover {
+  background: rgba(230, 162, 60, 0.1);
+}
+
+.btn-logout {
+  align-self: flex-start;
+  padding: 6px 12px;
+  border-radius: 16px;
+  border: 1px solid $border;
+  background: #fafafa;
+  font-size: 13px;
+  color: $text2;
+  cursor: pointer;
+}
+
+.btn-logout:hover {
+  border-color: $primary;
+  color: $primary;
 }
 
 .avatar {
@@ -370,11 +791,37 @@ $border: #eee;
   border-bottom: 1px solid $border;
 }
 
+.pets-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
 .section-title {
-  margin: 0 0 16px;
+  margin: 0;
   font-size: 17px;
   font-weight: 600;
   color: $text;
+}
+
+.btn-add-pet {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid $primary;
+  background: #fff;
+  font-size: 14px;
+  color: $primary;
+  cursor: pointer;
+}
+.btn-add-pet:hover {
+  background: rgba(230, 162, 60, 0.1);
+}
+
+.pets-empty {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: $text3;
 }
 
 .pets-grid {
@@ -433,6 +880,21 @@ $border: #eee;
   .health-label {
     color: $text3;
   }
+}
+
+.btn-edit-pet {
+  margin-top: 10px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid $border;
+  background: #fff;
+  font-size: 12px;
+  color: $text2;
+  cursor: pointer;
+}
+.btn-edit-pet:hover {
+  border-color: $primary;
+  color: $primary;
 }
 
 .btn-expand-pets {
@@ -544,5 +1006,106 @@ $border: #eee;
 .footer-likes {
   flex-shrink: 0;
   color: $primary;
+}
+
+/* 弹窗 */
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-box {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px 24px;
+  width: 90%;
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-title {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 600;
+  color: $text;
+}
+
+.modal-error {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #c00;
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  label {
+    font-size: 13px;
+    color: $text2;
+    margin-top: 4px;
+    .required { color: #c00; }
+  }
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  select,
+  textarea {
+    padding: 8px 10px;
+    border: 1px solid $border;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+  }
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid $border;
+}
+
+.btn-cancel {
+  padding: 8px 16px;
+  border: 1px solid $border;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 14px;
+  color: $text2;
+  cursor: pointer;
+}
+.btn-cancel:hover {
+  background: #f0f0f0;
+}
+
+.btn-submit {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 8px;
+  background: $primary;
+  font-size: 14px;
+  color: #fff;
+  cursor: pointer;
+}
+.btn-submit:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 </style>

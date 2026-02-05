@@ -2,13 +2,34 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.skypapaya.mapper.PetMapper">
-    <insert id="insertPet">
-        INSERT INTO pet (user_id,name,avatar,species,breed,gender,birthday,health,neutered，status)
-        VALUES(#{userId},#{name},#{avatar},#{species},#{breed},#{gender},#{birthday},#{health},#{neutered},#{status})
-
+    <insert id="insertPet" useGeneratedKeys="true" keyProperty="pet.id">
+        INSERT INTO pet (user_id, name, avatar, species, breed, gender, birthday, health, neutered, status)
+        VALUES (#{pet.userId}, #{pet.name}, #{pet.avatar}, #{pet.species}, #{pet.breed}, #{pet.gender}, #{pet.birthday}, #{pet.health}, #{pet.neutered}, #{pet.status})
     </insert>
+
     <select id="selectByUserId" resultType="com.skypapaya.vo.PetVO">
-        SELECT * FROM pet WHERE user_id = #{userId}
+        SELECT id, user_id AS userId, name, avatar, species, breed, gender, birthday, health, neutered, status, create_time AS createTime
+        FROM pet WHERE user_id = #{userId}
     </select>
+
+    <select id="selectById" resultType="com.skypapaya.entity.Pet">
+        SELECT * FROM pet WHERE id = #{id}
+    </select>
+
+    <update id="updatePet">
+        UPDATE pet
+        <set>
+            <if test="pet.name != null">name = #{pet.name},</if>
+            <if test="pet.avatar != null">avatar = #{pet.avatar},</if>
+            <if test="pet.species != null">species = #{pet.species},</if>
+            <if test="pet.breed != null">breed = #{pet.breed},</if>
+            <if test="pet.gender != null">gender = #{pet.gender},</if>
+            <if test="pet.birthday != null">birthday = #{pet.birthday},</if>
+            <if test="pet.health != null">health = #{pet.health},</if>
+            <if test="pet.neutered != null">neutered = #{pet.neutered},</if>
+            update_time = NOW()
+        </set>
+        WHERE id = #{pet.id}
+    </update>
 </mapper>
 

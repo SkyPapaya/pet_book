@@ -13,6 +13,7 @@ const commentInputExpanded = ref(false)
 const currentImageIndex = ref(0)
 const commentInput = ref('')
 const replyToCommentId = ref<number | null>(null)
+const replyToUserName = ref<string | null>(null)
 const expandedReplies = ref<Set<number>>(new Set())
 const swipeStartX = ref<number | null>(null)
 
@@ -86,6 +87,12 @@ function onMaskClick(e: MouseEvent) {
   if ((e.target as HTMLElement).classList.contains('modal-mask')) {
     close()
   }
+}
+
+function goToAuthorProfile() {
+  if (!post.value?.authorId) return
+  close()
+  router.push({ path: '/profile', query: { userId: String(post.value.authorId) } })
 }
 
 // 点赞 / 收藏 / 关注（前端切换状态）
@@ -175,67 +182,30 @@ function firstReply(c: Comment): Comment {
 }
 
 // 评论：mock 数据
-function getMockComments(postId: number, page: number, size: number): Comment[] {
-  const list: Comment[] = []
-  const contents = [
-    '好可爱！想领养',
-    '楼主在哪座城市？',
-    '已私信，求回复',
-    '我家也有一只，可以交流',
-    '感谢分享，收藏了',
-    '请问疫苗打了吗？',
-  ]
-  const base = (page - 1) * size
-  for (let i = 0; i < size; i++) {
-    const id = base + i + 1
-    const replyCount = Math.random() > 0.55 ? Math.floor(Math.random() * 5) + 2 : 0
-    const replies: Comment[] | undefined = replyCount
-      ? Array.from({ length: replyCount }, (_, ri) => {
-          const rid = 1000 * postId + id + 500 + ri
-          return {
-            id: rid,
-            postId,
-            userId: id + 100 + ri,
-            userName: `用户${id + 100 + ri}`,
-            userAvatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${id + 100 + ri}`,
-            content: (['同感', '已私信', '求地址', '太可爱了', '谢谢分享'] as const)[ri % 5] ?? '',
-            likeCount: Math.floor(Math.random() * 60),
-            createdAt: new Date(Date.now() - Math.random() * 86400000 * 3).toISOString(),
-            parentId: 1000 * postId + id,
-          }
-        }).sort((a, b) => b.likeCount - a.likeCount)
-      : undefined
-    list.push({
-      id: 1000 * postId + id,
-      postId,
-      userId: id,
-      userName: `用户${id}`,
-      userAvatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${id}`,
-      content: contents[i % contents.length] ?? '',
-      likeCount: Math.floor(Math.random() * 200),
-      createdAt: new Date(Date.now() - Math.random() * 86400000 * 7).toISOString(),
-      replyCount,
-      replies,
-    })
-  }
-  return list.sort((a, b) => b.likeCount - a.likeCount)
-}
-
-function loadComments(append = false) {
+async function loadComments(append = false) {
   if (!post.value || commentLoading.value) return
   commentLoading.value = true
-  setTimeout(() => {
-    const list = getMockComments(post.value!.id, append ? commentPage.value : 1, COMMENT_PAGE_SIZE)
-    if (append) {
-      comments.value = [...comments.value, ...list]
-      commentPage.value += 1
-    } else {
-      comments.value = list
-      commentPage.value = 2
+  try {
+    const res = await axios.get(`/api/post/${post.value.id}/comments`, {
+      params: {
+        page: append ? commentPage.value : 1,
+        size: COMMENT_PAGE_SIZE,
+      },
+    })
+    if (res.data.code === 200) {
+      const list = (res.data.data as Comment[]) ?? []
+      if (append) {
+        comments.value = [...comments.value, ...list]
+        commentPage.value += 1
+      } else {
+        comments.value = list
+        commentPage.value = 2
+      }
+      commentHasMore.value = list.length >= COMMENT_PAGE_SIZE
     }
-    commentHasMore.value = list.length >= COMMENT_PAGE_SIZE
+  } finally {
     commentLoading.value = false
-  }, 300)
+  }
 }
 
 function loadMoreComments() {
@@ -255,8 +225,9 @@ function expandCommentInput() {
   nextTick(() => commentInputRef.value?.focus())
 }
 
-function startReply(commentId: number) {
+function startReply(commentId: number, userName?: string) {
   replyToCommentId.value = commentId
+  replyToUserName.value = userName ?? null
   commentInputExpanded.value = true
   nextTick(() => commentInputRef.value?.focus())
 }
@@ -266,22 +237,31 @@ function goToProfile(userId: number) {
   router.push({ path: '/profile', query: { userId: String(userId) } })
 }
 
-function submitComment() {
-  if (!commentInput.value.trim()) return
-  const newComment: Comment = {
-    id: Date.now(),
-    postId: post.value!.id,
-    userId: appStore.user?.id ?? 0,
-    userName: appStore.user?.nickname ?? '我',
-    userAvatar: appStore.user?.avatar ?? '',
-    content: commentInput.value.trim(),
-    likeCount: 0,
-    createdAt: new Date().toISOString(),
+async function submitComment() {
+  if (!commentInput.value.trim() || !post.value) return
+  const content = commentInput.value.trim()
+  const parentId = replyToCommentId.value
+  try {
+    const res = await axios.post(`/api/post/${post.value.id}/comments`, {
+      content,
+      parentId,
+    })
+    if (res.data.code !== 200) {
+      alert(res.data.msg || '评论失败')
+      return
+    }
+    // 重新拉一遍评论列表
+    comments.value = []
+    commentPage.value = 1
+    commentHasMore.value = true
+    await loadComments(false)
+    commentInput.value = ''
+    replyToCommentId.value = null
+    replyToUserName.value = null
+    commentInputExpanded.value = false
+  } catch {
+    alert('评论失败')
   }
-  comments.value = [newComment, ...comments.value]
-  commentInput.value = ''
-  replyToCommentId.value = null
-  commentInputExpanded.value = false
 }
 
 function collapseCommentInput() {
@@ -358,12 +338,20 @@ async function likeReply(r: Comment) {
           <div class="right-panel">
             <!-- 右侧顶部作者栏：固定 -->
             <div class="right-author sticky">
-              <img :src="post.authorAvatar" alt="" class="author-avatar" />
-              <div class="author-meta">
-                <div class="author-name">{{ post.authorName }}</div>
-                <div class="post-sub">
-                  <span v-if="post.createdAt">{{ formatTime(post.createdAt) }}</span>
-                  <span v-if="post.publishIp">· IP: {{ post.publishIp }}</span>
+              <div
+                class="author-link"
+                role="button"
+                tabindex="0"
+                @click="goToAuthorProfile"
+                @keydown.enter.prevent="goToAuthorProfile"
+              >
+                <img :src="post.authorAvatar" alt="" class="author-avatar" />
+                <div class="author-meta">
+                  <div class="author-name">{{ post.authorName }}</div>
+                  <div class="post-sub">
+                    <span v-if="post.createdAt">{{ formatTime(post.createdAt) }}</span>
+                    <span v-if="post.publishIp">· IP: {{ post.publishIp }}</span>
+                  </div>
                 </div>
               </div>
               <button
@@ -410,8 +398,8 @@ async function likeReply(r: Comment) {
                       class="comment-content"
                       role="button"
                       tabindex="0"
-                      @click="startReply(c.id)"
-                      @keydown.enter.space.prevent="startReply(c.id)"
+                      @click="startReply(c.id, c.userName)"
+                      @keydown.enter.space.prevent="startReply(c.id, c.userName)"
                     >
                       {{ c.content }}
                     </p>
@@ -446,8 +434,8 @@ async function likeReply(r: Comment) {
                               class="reply-content reply-content-click"
                               role="button"
                               tabindex="0"
-                              @click="startReply(c.id)"
-                              @keydown.enter.space.prevent="startReply(c.id)"
+                              @click="startReply(c.id, firstReply(c).userName)"
+                              @keydown.enter.space.prevent="startReply(c.id, firstReply(c).userName)"
                             >{{ firstReply(c).content }}</span>
                             <button
                               type="button"
@@ -484,8 +472,8 @@ async function likeReply(r: Comment) {
                               class="reply-content reply-content-click"
                               role="button"
                               tabindex="0"
-                              @click="startReply(c.id)"
-                              @keydown.enter.space.prevent="startReply(c.id)"
+                              @click="startReply(c.id, r.userName)"
+                              @keydown.enter.space.prevent="startReply(c.id, r.userName)"
                             >{{ r.content }}</span>
                             <button
                               type="button"
@@ -558,6 +546,9 @@ async function likeReply(r: Comment) {
               <template v-else>
                 <div class="comment-expanded-wrap">
                   <div class="comment-expanded-row1">
+                    <div v-if="replyToUserName" class="reply-hint">
+                      回复 <span class="reply-hint-name">@{{ replyToUserName }}</span>
+                    </div>
                     <input
                       ref="commentInputRef"
                       v-model="commentInput"
@@ -734,6 +725,21 @@ $border: #eee;
 .right-author.sticky {
   position: sticky;
   top: 0;
+}
+
+.author-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  border-radius: 8px;
+  margin: -4px 0;
+  padding: 4px 0;
+}
+.author-link:hover {
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .author-meta {
@@ -1035,8 +1041,8 @@ $border: #eee;
 
 .comment-expanded-row1 {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
   .comment-input-expanded {
     flex: 1;
     min-width: 0;
@@ -1048,6 +1054,15 @@ $border: #eee;
   font-size: 18px;
   color: $text2;
   cursor: default;
+}
+
+.reply-hint {
+  font-size: 12px;
+  color: $text3;
+}
+
+.reply-hint-name {
+  color: $primary;
 }
 
 .comment-expanded-row2 {
