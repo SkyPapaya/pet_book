@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 
@@ -8,6 +8,10 @@ const route = useRoute()
 const appStore = useAppStore()
 
 const searchKeyword = ref('')
+// 与 URL query.q 同步，便于从 /?q=xxx 进入时搜索框显示关键词
+watch(() => route.query.q, (q) => {
+  searchKeyword.value = (typeof q === 'string' ? q : '') || ''
+}, { immediate: true })
 
 // 侧边栏：发现、发布、通知（个人中心在右上角，不放在侧边栏）
 const sideMenus = [

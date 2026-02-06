@@ -14,6 +14,11 @@ public interface PostMapper {
                                     @Param("offset") Integer offset,
                                     @Param("limit") Integer limit);
 
+    List<PostCardVO> selectSearch(@Param("keywordEscaped") String keywordEscaped,
+                                  @Param("keywordRaw") String keywordRaw,
+                                  @Param("offset") Integer offset,
+                                  @Param("limit") Integer limit);
+
     PostDetailVO selectPostDetail(@Param("id") Long id);
 
     int insertPost(Post post);

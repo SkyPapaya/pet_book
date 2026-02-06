@@ -17,6 +17,8 @@ public interface PostService {
      */
     List<PostCardVO> getFeedList(String channel, Integer page, Integer size);
 
+    List<PostCardVO> searchPosts(String keyword, Integer page, Integer size);
+
     PostDetailVO getPostDetail(Long id);
 
     /**

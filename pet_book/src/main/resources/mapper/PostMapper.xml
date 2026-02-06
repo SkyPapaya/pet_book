@@ -66,6 +66,30 @@
         LIMIT #{offset}, #{limit}
     </select>
 
+    <!-- 搜索帖子：先按标题模糊匹配（匹配度高的在前），再按正文模糊匹配（匹配度高的接在后面） -->
+    <select id="selectSearch" resultType="com.skypapaya.vo.PostCardVO">
+        SELECT
+            p.id,
+            p.title,
+            p.content AS `desc`,
+            p.images AS coverUrl,
+            p.channel,
+            p.user_id AS authorId,
+            u.nickname AS authorName,
+            u.avatar AS authorAvatar,
+            (SELECT COUNT(*) FROM interaction i WHERE i.target_id = p.id AND i.target_type = 1 AND i.type = 1) AS likeCount
+        FROM post p
+        LEFT JOIN user u ON p.user_id = u.id
+        WHERE p.status = 1
+          AND (p.title LIKE CONCAT('%', #{keywordEscaped}, '%') OR p.content LIKE CONCAT('%', #{keywordEscaped}, '%'))
+        ORDER BY
+            (CASE WHEN p.title LIKE CONCAT('%', #{keywordEscaped}, '%') THEN 0 ELSE 1 END),
+            (CASE WHEN p.title LIKE CONCAT('%', #{keywordEscaped}, '%') THEN IFNULL(NULLIF(INSTR(p.title, #{keywordRaw}), 0), 99999) ELSE 99999 END),
+            (CASE WHEN p.content LIKE CONCAT('%', #{keywordEscaped}, '%') THEN 0 ELSE 1 END),
+            (CASE WHEN p.content LIKE CONCAT('%', #{keywordEscaped}, '%') THEN IFNULL(NULLIF(INSTR(p.content, #{keywordRaw}), 0), 99999) ELSE 99999 END),
+            p.create_time DESC
+        LIMIT #{offset}, #{limit}
+    </select>
     <!-- 某用户发布的帖子列表 -->
     <select id="selectUserPosts" resultType="com.skypapaya.vo.PostCardVO">
         SELECT

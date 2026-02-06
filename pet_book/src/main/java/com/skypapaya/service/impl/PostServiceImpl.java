@@ -45,6 +45,23 @@ public class PostServiceImpl implements PostService {
         return list;
     }
 
+    @Override
+    public List<PostCardVO> searchPosts(String keyword, Integer page, Integer size) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return List.of();
+        }
+        String k = keyword.trim();
+        // 转义 LIKE 通配符，避免用户输入 % _ \ 导致匹配异常；INSTR 用原文
+        String escaped = k.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+        int offset = (page - 1) * size;
+        List<PostCardVO> list = postMapper.selectSearch(escaped, k, offset, size);
+        for (PostCardVO vo : list) {
+            String imagesJson = vo.getCoverUrl();
+            vo.setCoverUrl(extractFirstImage(imagesJson));
+        }
+        return list;
+    }
+
     /**
      * 辅助方法：从 JSON 数组字符串中提取第一张图片
      */

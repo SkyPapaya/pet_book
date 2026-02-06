@@ -40,6 +40,19 @@ public class PostController {
     }
 
     /**
+     * 搜索帖子：标题或正文包含关键词
+     * GET /api/post/search?q=xxx&page=1&size=16
+     */
+    @GetMapping("/search")
+    public Result<List<PostCardVO>> searchPosts(
+            @RequestParam(value = "q", required = false) String q,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "16") Integer size) {
+        List<PostCardVO> list = postService.searchPosts(q, page, size);
+        return Result.success(list);
+    }
+
+    /**
      * 帖子详情（PostDetailModal 按 id 拉取）
      * GET /api/post/{id}
      */

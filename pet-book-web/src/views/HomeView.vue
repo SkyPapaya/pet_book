@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import axios from 'axios'
+import { useRoute } from 'vue-router'
 import { useAppStore } from '../stores/app'
 import type { PostCard, PostDetail } from '../types'
 import {
@@ -10,6 +11,14 @@ import {
 } from '../data/demoFeed'
 
 const appStore = useAppStore()
+const route = useRoute()
+
+/** 当前搜索关键词（来自 URL ?q=） */
+const searchQuery = computed(() => {
+  const q = route.query.q
+  return (typeof q === 'string' ? q : '')?.trim() || ''
+})
+const isSearchMode = computed(() => searchQuery.value.length > 0)
 
 const channels: { id: ChannelId; name: string }[] = [
   { id: 'all', name: '推荐' },
@@ -83,6 +92,38 @@ async function fetchFeed(append = false) {
     }
   } catch {
     useMockFeed(append)
+  } finally {
+    loading.value = false
+  }
+}
+
+/** 搜索帖子 */
+async function fetchSearch(append = false) {
+  const q = searchQuery.value
+  if (!q || loading.value) return
+  loading.value = true
+  try {
+    const res = await axios.get('/api/post/search', {
+      params: { q, page: append ? page.value : 1, size: pageSize },
+    })
+    const list = Array.isArray(res?.data?.data) ? res.data.data : []
+    const ok = res?.data?.code === 200
+    if (ok) {
+      if (append) {
+        postList.value = [...postList.value, ...list]
+        if (list.length > 0) page.value += 1
+      } else {
+        postList.value = list
+        page.value = 2
+      }
+      hasMore.value = list.length >= pageSize
+    } else {
+      if (!append) postList.value = []
+      hasMore.value = false
+    }
+  } catch {
+    if (!append) postList.value = []
+    hasMore.value = false
   } finally {
     loading.value = false
   }
@@ -182,20 +223,22 @@ async function toggleLikeInFeed(id: number) {
 function onRefresh() {
   hasMore.value = true
   page.value = 1
-  fetchFeed(false)
+  if (isSearchMode.value) fetchSearch(false)
+  else fetchFeed(false)
 }
 
 function onScrollLoad() {
-  if (loading.value) return
+  if (loading.value || !hasMore.value) return
   const { scrollTop, scrollHeight, clientHeight } = document.documentElement
   if (scrollTop + clientHeight >= scrollHeight - 200) {
-    if (hasMore.value) fetchFeed(true)
-    else onRefresh()
+    if (isSearchMode.value) fetchSearch(true)
+    else fetchFeed(true)
   }
 }
 
 onMounted(() => {
-  fetchFeed(false)
+  if (isSearchMode.value) fetchSearch(false)
+  else fetchFeed(false)
   window.addEventListener('scroll', onScrollLoad, { passive: true })
   window.addEventListener('feed-refresh', onRefresh)
 })
@@ -204,11 +247,18 @@ onUnmounted(() => {
   window.removeEventListener('feed-refresh', onRefresh)
 })
 
+watch(searchQuery, (q) => {
+  page.value = 1
+  hasMore.value = true
+  if (q) fetchSearch(false)
+  else fetchFeed(false)
+}, { immediate: false })
+
 watch(activeChannel, (id) => {
+  if (isSearchMode.value) return
   page.value = 1
   hasMore.value = true
   fetchFeed(false)
-  // 切换频道时把当前 Tab 滚到可见区域
   nextTick(() => {
     const el = channelBarRef.value?.querySelector(`[data-channel="${id}"]`)
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
@@ -218,8 +268,13 @@ watch(activeChannel, (id) => {
 
 <template>
   <div class="home-view">
-    <!-- 频道横向滚动栏（模仿小红书） -->
-    <div class="channel-bar-wrap">
+    <!-- 搜索态：显示关键词 -->
+    <div v-if="isSearchMode" class="search-hint">
+      <span class="search-hint-label">搜索「{{ searchQuery }}」</span>
+      <a href="javascript:;" class="search-hint-clear" @click="$router.replace('/')">清除</a>
+    </div>
+    <!-- 频道横向滚动栏（非搜索时显示） -->
+    <div v-else class="channel-bar-wrap">
       <div class="channel-bar" ref="channelBarRef">
         <a
           v-for="ch in channels"
@@ -267,6 +322,7 @@ watch(activeChannel, (id) => {
         </div>
       </div>
       <div v-if="loading" class="loading-tip">加载中...</div>
+      <div v-else-if="isSearchMode && !postList.length" class="empty-tip">暂无「{{ searchQuery }}」相关帖子</div>
       <div v-else-if="!hasMore && postList.length" class="no-more">下滑刷新下一批</div>
     </div>
   </div>
@@ -445,8 +501,26 @@ $border: #eee;
   flex-shrink: 0;
 }
 
+.search-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: $bg;
+  border-bottom: 1px solid $border;
+  .search-hint-label {
+    font-size: 14px;
+    color: $text2;
+  }
+  .search-hint-clear {
+    font-size: 13px;
+    color: $primary;
+  }
+}
+
 .loading-tip,
-.no-more {
+.no-more,
+.empty-tip {
   text-align: center;
   padding: 20px;
   color: $text3;
