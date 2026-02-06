@@ -25,6 +25,7 @@ const commentPage = ref(1)
 const COMMENT_PAGE_SIZE = 10
 
 const post = computed(() => appStore.openedPostDetail)
+const detailLoading = ref(false)
 const imageUrls = computed(() => post.value?.imageUrls ?? [])
 const currentImage = computed(
   () => imageUrls.value[currentImageIndex.value] ?? imageUrls.value[0] ?? ''
@@ -90,9 +91,10 @@ function onMaskClick(e: MouseEvent) {
 }
 
 function goToAuthorProfile() {
-  if (!post.value?.authorId) return
+  const authorId = post.value?.authorId
+  if (authorId == null) return
   close()
-  router.push({ path: '/profile', query: { userId: String(post.value.authorId) } })
+  router.push({ path: '/profile', query: { userId: String(authorId) } })
 }
 
 // 点赞 / 收藏 / 关注（前端切换状态）
@@ -101,6 +103,43 @@ const isCollected = ref(false)
 const isFollowed = ref(false)
 const likeCount = ref(0)
 const collectCount = ref(0)
+
+// 仅有 id 无 detail 时按 id 拉取详情（如从个人主页点进）
+watch(
+  () => appStore.openedPostId,
+  async (id) => {
+    if (id == null) return
+    if (appStore.openedPostDetail) return
+    detailLoading.value = true
+    try {
+      const res = await axios.get(`/api/post/${id}`)
+      if (res.data.code === 200 && res.data.data) {
+        const d = res.data.data
+        const detail: PostDetail = {
+          id: d.id,
+          title: d.title ?? '',
+          desc: d.desc ?? '',
+          imageUrls: Array.isArray(d.imageUrls) ? d.imageUrls : [],
+          authorId: d.authorId,
+          authorName: d.authorName ?? '',
+          authorAvatar: d.authorAvatar ?? '',
+          likeCount: d.likeCount ?? 0,
+          collectCount: d.collectCount ?? 0,
+          commentCount: d.commentCount ?? 0,
+          isLiked: d.isLiked,
+          isCollected: d.isCollected,
+          isFollowed: d.isFollowed,
+          createdAt: d.createdAt != null ? String(d.createdAt) : undefined,
+          publishIp: d.publishIp,
+        }
+        appStore.setOpenedPostDetail(detail)
+      }
+    } finally {
+      detailLoading.value = false
+    }
+  },
+  { immediate: true }
+)
 
 watch(
   post,
@@ -233,7 +272,8 @@ function startReply(commentId: number, userName?: string) {
 }
 
 
-function goToProfile(userId: number) {
+function goToProfile(userId: number | null | undefined) {
+  if (userId == null) return
   router.push({ path: '/profile', query: { userId: String(userId) } })
 }
 
@@ -312,7 +352,7 @@ async function likeReply(r: Comment) {
 <template>
   <Teleport to="body">
     <div
-      v-if="appStore.isPostModalOpen && post"
+      v-if="appStore.isPostModalOpen"
       class="modal-mask"
       @click="onMaskClick"
     >
@@ -322,7 +362,8 @@ async function likeReply(r: Comment) {
           ✕
         </button>
 
-        <div class="modal-body">
+        <div v-if="detailLoading" class="modal-loading">加载中...</div>
+        <div v-else-if="post" class="modal-body">
           <!-- 左侧：图片轮播（占大半） -->
           <div class="left-panel">
             <div class="image-area" @pointerdown="onSwipeStart" @pointerup="onSwipeEnd">
@@ -571,6 +612,7 @@ async function likeReply(r: Comment) {
             </div>
           </div>
         </div>
+        <div v-else class="modal-loading">加载失败或帖子不存在</div>
       </div>
     </div>
   </Teleport>
@@ -607,6 +649,13 @@ $border: #eee;
   flex-direction: column;
   position: relative;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-loading {
+  padding: 80px 24px;
+  text-align: center;
+  color: $text2;
+  font-size: 15px;
 }
 
 .btn-close {

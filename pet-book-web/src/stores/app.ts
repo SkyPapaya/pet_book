@@ -58,6 +58,10 @@ export const useAppStore = defineStore('app', () => {
     openedPostDetail.value = detail ?? null
   }
 
+  function setOpenedPostDetail(detail: PostDetail | null) {
+    openedPostDetail.value = detail
+  }
+
   function closePost() {
     openedPostId.value = null
     openedPostDetail.value = null
@@ -74,6 +78,7 @@ export const useAppStore = defineStore('app', () => {
     openedPostDetail,
     isPostModalOpen,
     openPost,
+    setOpenedPostDetail,
     closePost,
     logout,
   }

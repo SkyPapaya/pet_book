@@ -4,6 +4,15 @@ spring:
     url: jdbc:mysql://localhost:3306/pet_book?useUnicode=true&characterEncoding=utf-8&serverTimezone=Asia/Shanghai
     username: root
     password: whm161122309
+    # HikariCP 连接池：避免 MySQL 挂掉/连接僵死
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      max-lifetime: 1800000          # 30 分钟，在 MySQL wait_timeout 前回收连接
+      idle-timeout: 600000           # 10 分钟空闲即回收
+      connection-timeout: 20000      # 获取连接最多等 20 秒
+      connection-test-query: SELECT 1 # 从池中取连接时先校验是否有效
+      leak-detection-threshold: 60000 # 连接占用超过 60 秒打日志，便于发现泄漏
 
   data:
     redis:

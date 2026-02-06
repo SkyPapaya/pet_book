@@ -69,7 +69,7 @@ function formatCount(n: number): string {
 }
 
 function openPost(id: number) {
-  console.log('open post', id)
+  appStore.openPost(id)
 }
 
 function formatBirthday(birthday?: string): string {
@@ -489,58 +489,67 @@ async function submitEditPet() {
 
     <div class="grid-wrap">
       <template v-if="activeTab === 'posts'">
-        <div
-          v-for="item in postList"
-          :key="item.id"
-          class="grid-card"
-          @click="openPost(item.id)"
-        >
-          <div class="card-cover">
-            <img :src="item.coverUrl" alt="" />
+        <template v-if="postList.length">
+          <div
+            v-for="item in postList"
+            :key="item.id"
+            class="grid-card"
+            @click="openPost(item.id)"
+          >
+            <div class="card-cover">
+              <img :src="item.coverUrl" alt="" />
+            </div>
+            <p class="card-title">{{ item.title }}</p>
+            <div class="card-footer">
+              <img v-if="user?.avatar" :src="user.avatar" alt="" class="footer-avatar" />
+              <span class="footer-name">{{ user?.nickname }}</span>
+              <span class="footer-likes">♥ {{ formatCount(item.likeCount) }}</span>
+            </div>
           </div>
-          <p class="card-title">{{ item.title }}</p>
-          <div class="card-footer">
-            <img v-if="user?.avatar" :src="user.avatar" alt="" class="footer-avatar" />
-            <span class="footer-name">{{ user?.nickname }}</span>
-            <span class="footer-likes">♥ {{ formatCount(item.likeCount) }}</span>
-          </div>
-        </div>
+        </template>
+        <p v-else class="grid-empty">暂无笔记</p>
       </template>
       <template v-else-if="activeTab === 'collect'">
-        <div
-          v-for="item in collectList"
-          :key="item.id"
-          class="grid-card"
-          @click="openPost(item.id)"
-        >
-          <div class="card-cover">
-            <img :src="item.coverUrl" alt="" />
+        <template v-if="collectList.length">
+          <div
+            v-for="item in collectList"
+            :key="item.id"
+            class="grid-card"
+            @click="openPost(item.id)"
+          >
+            <div class="card-cover">
+              <img :src="item.coverUrl" alt="" />
+            </div>
+            <p class="card-title">{{ item.title }}</p>
+            <div class="card-footer">
+              <img v-if="user?.avatar" :src="user.avatar" alt="" class="footer-avatar" />
+              <span class="footer-name">{{ user?.nickname }}</span>
+              <span class="footer-likes">♥ {{ formatCount(item.likeCount) }}</span>
+            </div>
           </div>
-          <p class="card-title">{{ item.title }}</p>
-          <div class="card-footer">
-            <img v-if="user?.avatar" :src="user.avatar" alt="" class="footer-avatar" />
-            <span class="footer-name">{{ user?.nickname }}</span>
-            <span class="footer-likes">♥ {{ formatCount(item.likeCount) }}</span>
-          </div>
-        </div>
+        </template>
+        <p v-else class="grid-empty">暂无收藏</p>
       </template>
       <template v-else>
-        <div
-          v-for="item in likeList"
-          :key="item.id"
-          class="grid-card"
-          @click="openPost(item.id)"
-        >
-          <div class="card-cover">
-            <img :src="item.coverUrl" alt="" />
+        <template v-if="likeList.length">
+          <div
+            v-for="item in likeList"
+            :key="item.id"
+            class="grid-card"
+            @click="openPost(item.id)"
+          >
+            <div class="card-cover">
+              <img :src="item.coverUrl" alt="" />
+            </div>
+            <p class="card-title">{{ item.title }}</p>
+            <div class="card-footer">
+              <img v-if="user?.avatar" :src="user.avatar" alt="" class="footer-avatar" />
+              <span class="footer-name">{{ user?.nickname }}</span>
+              <span class="footer-likes">♥ {{ formatCount(item.likeCount) }}</span>
+            </div>
           </div>
-          <p class="card-title">{{ item.title }}</p>
-          <div class="card-footer">
-            <img v-if="user?.avatar" :src="user.avatar" alt="" class="footer-avatar" />
-            <span class="footer-name">{{ user?.nickname }}</span>
-            <span class="footer-likes">♥ {{ formatCount(item.likeCount) }}</span>
-          </div>
-        </div>
+        </template>
+        <p v-else class="grid-empty">暂无点赞</p>
       </template>
     </div>
 
@@ -947,6 +956,14 @@ $border: #eee;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 20px;
+}
+
+.grid-empty {
+  grid-column: 1 / -1;
+  margin: 40px 0;
+  text-align: center;
+  font-size: 14px;
+  color: $text3;
 }
 
 .grid-card {
