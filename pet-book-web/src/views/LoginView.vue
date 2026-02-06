@@ -16,7 +16,7 @@ const loading = ref(false)
 function applyUserFromResponse(data: any) {
   localStorage.setItem('token', data.token)
   // 登录/注册后必须设置 appStore.user，否则个人中心会显示未登录
-  appStore.user = {
+  appStore.setUser({
     id: data.userId,
     nickname: data.nickname ?? '用户',
     avatar: data.avatar ?? '',
@@ -28,7 +28,7 @@ function applyUserFromResponse(data: any) {
     followersCount: 0,
     likesAndCollectCount: 0,
     pets: [],
-  }
+  })
 }
 
 async function onSubmit() {

@@ -17,9 +17,7 @@ const router = createRouter({
     },
     {
       path: '/publish',
-      name: 'publish',
-      component: () => import('../views/PublishView.vue'),
-      meta: { title: '发布' },
+      redirect: '/publish/create',
     },
     {
       path: '/publish/create',

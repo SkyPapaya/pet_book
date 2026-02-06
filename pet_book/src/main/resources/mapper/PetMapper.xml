@@ -33,5 +33,9 @@
         </set>
         WHERE id = #{pet.id}
     </update>
+
+    <delete id="deletePet">
+        DELETE FROM pet WHERE id = #{id}
+    </delete>
 </mapper>
 

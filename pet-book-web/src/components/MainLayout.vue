@@ -13,10 +13,10 @@ watch(() => route.query.q, (q) => {
   searchKeyword.value = (typeof q === 'string' ? q : '') || ''
 }, { immediate: true })
 
-// 侧边栏：发现、发布、通知（个人中心在右上角，不放在侧边栏）
+// 侧边栏：发现、发布（直接写笔记）、通知（个人中心在右上角）
 const sideMenus = [
   { path: '/', name: '发现', icon: '🔍' },
-  { path: '/publish', name: '发布', icon: '✏️' },
+  { path: '/publish/create', name: '发布', icon: '✏️' },
   { path: '/notification', name: '通知', icon: '🔔' },
 ]
 
@@ -70,7 +70,7 @@ onUnmounted(() => {
           :key="item.path"
           :href="item.path"
           class="nav-item"
-          :class="{ active: route.path === item.path || (item.path === '/publish' && route.path.startsWith('/publish')) }"
+          :class="{ active: route.path === item.path || (item.path === '/publish/create' && route.path.startsWith('/publish')) }"
           @click.prevent="goTo(item.path)"
         >
           <span class="icon">{{ item.icon }}</span>

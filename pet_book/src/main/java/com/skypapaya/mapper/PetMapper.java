@@ -16,4 +16,6 @@ public interface PetMapper {
     int insertPet(@Param("pet") Pet pet);
 
     int updatePet(@Param("pet") Pet pet);
+
+    int deletePet(@Param("id") Long id);
 }

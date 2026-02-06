@@ -43,9 +43,19 @@ const mockPets: Pet[] = [
   },
 ]
 
-// 当前登录用户（模拟，含个人主页所需字段）
+// 当前登录用户（含个人主页所需字段）
 export const useAppStore = defineStore('app', () => {
   const user = ref<UserProfile | null>(null)
+
+  // 刷新后从 localStorage 恢复用户信息
+  const stored = localStorage.getItem('user')
+  if (stored) {
+    try {
+      user.value = JSON.parse(stored) as UserProfile
+    } catch {
+      user.value = null
+    }
+  }
 
   // 当前打开的帖子详情（用于弹窗）
   const openedPostId = ref<number | null>(null)
@@ -62,6 +72,15 @@ export const useAppStore = defineStore('app', () => {
     openedPostDetail.value = detail
   }
 
+  function setUser(u: UserProfile | null) {
+    user.value = u
+    if (u) {
+      localStorage.setItem('user', JSON.stringify(u))
+    } else {
+      localStorage.removeItem('user')
+    }
+  }
+
   function closePost() {
     openedPostId.value = null
     openedPostDetail.value = null
@@ -69,7 +88,7 @@ export const useAppStore = defineStore('app', () => {
 
   function logout() {
     localStorage.removeItem('token')
-    user.value = null
+    setUser(null)
   }
 
   return {
@@ -79,6 +98,7 @@ export const useAppStore = defineStore('app', () => {
     isPostModalOpen,
     openPost,
     setOpenedPostDetail,
+    setUser,
     closePost,
     logout,
   }

@@ -51,4 +51,24 @@ public class PetController {
         petMapper.updatePet(pet);
         return Result.success(null);
     }
+
+    /**
+     * 删除宠物 DELETE /api/pet/{id}，仅允许本人删除
+     */
+    @DeleteMapping("/{id}")
+    public Result<Void> deletePet(@PathVariable Long id) {
+        Long currentUserId = CurrentUserHolder.get();
+        if (currentUserId == null) {
+            return Result.error(401, "未登录");
+        }
+        Pet existing = petMapper.selectById(id);
+        if (existing == null) {
+            return Result.error(404, "宠物不存在");
+        }
+        if (!currentUserId.equals(existing.getUserId())) {
+            return Result.error(403, "无权删除该宠物");
+        }
+        petMapper.deletePet(id);
+        return Result.success(null);
+    }
 }

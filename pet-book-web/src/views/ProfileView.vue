@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onActivated, watch } from 'vue'
 import axios from 'axios'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '../stores/app'
@@ -136,13 +136,22 @@ async function fetchLists(userId: number) {
   if (likesRes.data.code === 200) likeList.value = likesRes.data.data ?? []
 }
 
-onMounted(async () => {
+async function loadProfileAndLists() {
   const userIdParam = route.query.userId
   const userId = userIdParam ? Number(userIdParam) : undefined
   const id = userId || (appStore.user?.id as number | undefined)
   if (!id) return
   await fetchProfile(id)
   await fetchLists(id)
+}
+
+onMounted(() => {
+  loadProfileAndLists()
+})
+
+// 从其他页切回个人主页时（如 keep-alive 缓存）自动刷新宠物、帖子等
+onActivated(() => {
+  loadProfileAndLists()
 })
 
 watch(
@@ -355,6 +364,28 @@ async function submitEditPet() {
     editPetLoading.value = false
   }
 }
+
+// 删除宠物
+async function deletePet(pet: Pet) {
+  if (!isSelf.value) return
+  if (!window.confirm(`确定删除宠物「${pet.name}」吗？`)) return
+  try {
+    const res = await axios.delete(`/api/pet/${pet.id}`)
+    if (res.data.code === 200) {
+      const id = appStore.user?.id
+      if (id) {
+        await fetchProfile(id)
+      }
+    } else {
+      window.alert(res.data.message || '删除失败')
+    }
+  } catch (e: unknown) {
+    window.alert(
+      (e as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        '删除失败'
+    )
+  }
+}
 </script>
 
 <template>
@@ -435,9 +466,14 @@ async function submitEditPet() {
             <div v-if="pet.neutered !== undefined" class="pet-meta">
               {{ pet.neutered ? '已绝育' : '未绝育' }}
             </div>
-            <button v-if="isSelf" type="button" class="btn-edit-pet" @click="openEditPet(pet)">
-              编辑
-            </button>
+            <div v-if="isSelf" class="pet-actions">
+              <button type="button" class="btn-edit-pet" @click="openEditPet(pet)">
+                编辑
+              </button>
+              <button type="button" class="btn-delete-pet" @click="deletePet(pet)">
+                删除
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -896,9 +932,15 @@ $border: #eee;
   }
 }
 
-.btn-edit-pet {
+.pet-actions {
   margin-top: 10px;
-  padding: 4px 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.btn-edit-pet,
+.btn-delete-pet {
+  padding: 4px 10px;
   border-radius: 6px;
   border: 1px solid $border;
   background: #fff;
@@ -909,6 +951,14 @@ $border: #eee;
 .btn-edit-pet:hover {
   border-color: $primary;
   color: $primary;
+}
+.btn-delete-pet {
+  border-color: #f5c0c0;
+  color: #c00;
+}
+.btn-delete-pet:hover {
+  border-color: #c00;
+  background: #ffecec;
 }
 
 .btn-expand-pets {
